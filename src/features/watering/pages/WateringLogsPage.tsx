@@ -1,37 +1,163 @@
-import { Droplets } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { ArrowLeft, Droplets } from "lucide-react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 
+import { getAppErrorMessage } from "@/core/api/apiError";
+import { usePlantDetail } from "@/features/plants/hooks/usePlants";
+import { normalizeWateringLogFormValues } from "@/features/watering/hooks/useWatering";
+import {
+    useCreateWateringLogMutation,
+    useWateringLogs,
+    useWateringSummary
+} from "@/features/watering/hooks/useWatering";
+import type { WateringLogFormValues } from "@/features/watering/schemas/wateringSchemas";
+import { WateringLogForm } from "@/features/watering/components/WateringLogForm";
+import { WateringLogsList } from "@/features/watering/components/WateringLogsList";
+import { WateringSummaryCard } from "@/features/watering/components/WateringSummaryCard";
+import { EmptyState } from "@/shared/components/EmptyState";
+import { ErrorState } from "@/shared/components/ErrorState";
+import { LoadingState } from "@/shared/components/LoadingState";
 import { PageHeader } from "@/shared/components/PageHeader";
-import { RoutePlaceholder } from "@/shared/components/RoutePlaceholder";
 import { Button } from "@/shared/components/ui/button";
+
+function parsePositiveInt(value: string | null | undefined, fallback: number): number {
+    if (!value) {
+        return fallback;
+    }
+
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
 
 export function WateringLogsPage() {
     const { plantId } = useParams();
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    const parsedPlantId = parsePositiveInt(plantId, 0);
+    const page = parsePositiveInt(searchParams.get("page"), 1);
+    const pageSize = parsePositiveInt(searchParams.get("page_size"), 20);
+
+    const plantQuery = usePlantDetail(parsedPlantId, parsedPlantId > 0);
+    const logsQuery = useWateringLogs(parsedPlantId, {
+        page,
+        page_size: pageSize
+    });
+    const summaryQuery = useWateringSummary(parsedPlantId);
+    const createMutation = useCreateWateringLogMutation(parsedPlantId);
+
+    if (!parsedPlantId) {
+        return (
+            <ErrorState
+                title="Planta inválida"
+                description="O identificador informado na URL não é válido."
+            />
+        );
+    }
+
+    const total = logsQuery.data?.meta?.total ?? logsQuery.data?.items.length ?? 0;
+    const totalPages =
+        logsQuery.data?.meta?.total_pages ?? Math.max(1, Math.ceil(total / pageSize));
+    const hasLogs = Boolean(logsQuery.data?.items.length);
+
+    function goToPage(nextPage: number) {
+        const next = new URLSearchParams(searchParams);
+        next.set("page", String(nextPage));
+        next.set("page_size", String(pageSize));
+        setSearchParams(next);
+    }
+
+    async function handleCreateWateringLog(values: WateringLogFormValues) {
+        await createMutation.mutateAsync(normalizeWateringLogFormValues(values));
+    }
 
     return (
         <>
             <PageHeader
                 eyebrow="Regas"
-                title={`Histórico de regas da planta ${plantId ?? ""}`}
-                description="Histórico e criação de registros serão conectados aos endpoints de watering-logs no Bloco 6."
+                title={`Regas${plantQuery.data?.name ? ` · ${plantQuery.data.name}` : ""}`}
+                description="Histórico, resumo e criação de registros de rega da planta."
                 actions={
                     <Button asChild variant="outline">
-                        <Link to={`/app/plants/${plantId ?? "1"}`}>Voltar para planta</Link>
+                        <Link to={`/app/plants/${parsedPlantId}`}>
+                            <ArrowLeft className="mr-2 h-4 w-4" />
+                            Voltar para planta
+                        </Link>
                     </Button>
                 }
             />
 
-            <RoutePlaceholder
-                icon={<Droplets className="h-5 w-5" />}
-                title="Regas preparadas"
-                description="A tela vai listar regas, exibir resumo e permitir criar novo registro com data, quantidade e observações."
-                bullets={[
-                    "GET /plants/{plantId}/watering-logs",
-                    "POST /plants/{plantId}/watering-logs",
-                    "GET /plants/{plantId}/watering-summary",
-                    "Validação local de data e quantidade"
-                ]}
-            />
+            <div className="space-y-5">
+                <WateringSummaryCard
+                    summary={summaryQuery.data}
+                    isLoading={summaryQuery.isLoading}
+                    errorMessage={
+                        summaryQuery.error ? getAppErrorMessage(summaryQuery.error) : null
+                    }
+                    onRetry={() => void summaryQuery.refetch()}
+                />
+
+                <WateringLogForm
+                    isSubmitting={createMutation.isPending}
+                    apiErrorMessage={
+                        createMutation.error ? getAppErrorMessage(createMutation.error) : null
+                    }
+                    onSubmit={handleCreateWateringLog}
+                />
+
+                {logsQuery.isLoading ? (
+                    <LoadingState
+                        title="Carregando regas"
+                        description="Buscando histórico de regas na API."
+                    />
+                ) : null}
+
+                {logsQuery.isError ? (
+                    <ErrorState
+                        title="Não foi possível carregar o histórico"
+                        description={getAppErrorMessage(logsQuery.error)}
+                        actionLabel="Tentar novamente"
+                        onAction={() => void logsQuery.refetch()}
+                    />
+                ) : null}
+
+                {!logsQuery.isLoading && !logsQuery.isError && !hasLogs ? (
+                    <EmptyState
+                        icon={<Droplets className="h-6 w-6" />}
+                        title="Nenhuma rega registrada"
+                        description="Registre a primeira rega para criar o histórico desta planta."
+                    />
+                ) : null}
+
+                {hasLogs ? (
+                    <>
+                        <WateringLogsList logs={logsQuery.data?.items ?? []} />
+
+                        <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border bg-card px-4 py-3 sm:flex-row">
+                            <p className="text-sm text-muted-foreground">
+                                Página {page} de {totalPages} · {total} registro(s)
+                            </p>
+
+                            <div className="flex gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    disabled={page <= 1 || logsQuery.isFetching}
+                                    onClick={() => goToPage(page - 1)}
+                                >
+                                    Anterior
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    disabled={page >= totalPages || logsQuery.isFetching}
+                                    onClick={() => goToPage(page + 1)}
+                                >
+                                    Próxima
+                                </Button>
+                            </div>
+                        </div>
+                    </>
+                ) : null}
+            </div>
         </>
     );
 }
