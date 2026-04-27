@@ -1,6 +1,10 @@
 import type { PaginationMeta } from "@/core/api/responseEnvelope";
 
-export type NotificationStatus = "pending" | "read" | "discarded" | string;
+export const NOTIFICATION_STATUSES = ["pending", "read", "discarded"] as const;
+
+export type KnownNotificationStatus = (typeof NOTIFICATION_STATUSES)[number];
+export type NotificationStatus = KnownNotificationStatus | (string & {});
+export type NotificationStatusFilter = "" | KnownNotificationStatus;
 
 export type NotificationItem = {
   id: number;
@@ -17,7 +21,7 @@ export type NotificationItem = {
 export type NotificationListParams = {
   page?: number;
   page_size?: number;
-  status?: string;
+  status?: NotificationStatusFilter | string;
 };
 
 export type PaginatedNotificationsResult = {
@@ -27,7 +31,13 @@ export type PaginatedNotificationsResult = {
 
 export type NotificationActionResponse = {
   id: number;
-  status: string;
+  status: NotificationStatus;
   read_at?: string | null;
   discarded_at?: string | null;
 };
+
+export function isKnownNotificationStatus(
+  value: string | null | undefined
+): value is KnownNotificationStatus {
+  return NOTIFICATION_STATUSES.includes(value as KnownNotificationStatus);
+}

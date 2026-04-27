@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Bell } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 
@@ -13,13 +14,21 @@ import {
     useNotificationsList
 } from "@/features/notifications/hooks/useNotifications";
 import type { NotificationListParams } from "@/features/notifications/types/notificationTypes";
+import { isKnownNotificationStatus } from "@/features/notifications/types/notificationTypes";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { ErrorState } from "@/shared/components/ErrorState";
 import { LoadingState } from "@/shared/components/LoadingState";
 import { PageHeader } from "@/shared/components/PageHeader";
 import { Button } from "@/shared/components/ui/button";
 
-function parsePositiveInt(value: string | null, fallback: number): number {
+const DEFAULT_PAGE = 1;
+const DEFAULT_PAGE_SIZE = 20;
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
+
+function parsePositiveInt(
+    value: string | null | undefined,
+    fallback: number
+): number {
     if (!value) {
         return fallback;
     }
@@ -28,24 +37,45 @@ function parsePositiveInt(value: string | null, fallback: number): number {
     return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+function parsePageSize(value: string | null): number {
+    const parsed = parsePositiveInt(value, DEFAULT_PAGE_SIZE);
+    return PAGE_SIZE_OPTIONS.includes(parsed as (typeof PAGE_SIZE_OPTIONS)[number])
+        ? parsed
+        : DEFAULT_PAGE_SIZE;
+}
+
+function parseStatusFilter(
+    value: string | null | undefined
+): NotificationFiltersValue["status"] {
+    const normalized = value?.trim();
+    return normalized && isKnownNotificationStatus(normalized) ? normalized : "";
+}
+
 function getFilters(searchParams: URLSearchParams): NotificationFiltersValue {
     return {
-        status: searchParams.get("status") ?? ""
+        status: parseStatusFilter(searchParams.get("status"))
     };
+}
+
+function isPositiveInteger(value: number): boolean {
+    return Number.isInteger(value) && value > 0;
 }
 
 export function NotificationsPage() {
     const [searchParams, setSearchParams] = useSearchParams();
 
-    const page = parsePositiveInt(searchParams.get("page"), 1);
-    const pageSize = parsePositiveInt(searchParams.get("page_size"), 20);
+    const page = parsePositiveInt(searchParams.get("page"), DEFAULT_PAGE);
+    const pageSize = parsePageSize(searchParams.get("page_size"));
     const filters = getFilters(searchParams);
 
-    const queryParams: NotificationListParams = {
-        page,
-        page_size: pageSize,
-        status: filters.status || undefined
-    };
+    const queryParams = useMemo<NotificationListParams>(
+        () => ({
+            page,
+            page_size: pageSize,
+            status: filters.status || undefined
+        }),
+        [filters.status, page, pageSize]
+    );
 
     const notificationsQuery = useNotificationsList(queryParams);
     const markReadMutation = useMarkNotificationReadMutation();
@@ -55,12 +85,26 @@ export function NotificationsPage() {
         notificationsQuery.data?.meta?.total ??
         notificationsQuery.data?.items.length ??
         0;
-    const totalPages =
-        notificationsQuery.data?.meta?.total_pages ??
-        Math.max(1, Math.ceil(total / pageSize));
+    const totalPages = Math.max(
+        1,
+        notificationsQuery.data?.meta?.total_pages ?? Math.ceil(total / pageSize)
+    );
     const hasItems = Boolean(notificationsQuery.data?.items.length);
     const mutationError = markReadMutation.error ?? discardMutation.error;
-    const isMutating = markReadMutation.isPending || discardMutation.isPending;
+
+    const mutatingNotificationIds = useMemo(() => {
+        const ids = new Set<number>();
+
+        if (markReadMutation.isPending && markReadMutation.variables) {
+            ids.add(markReadMutation.variables);
+        }
+
+        if (discardMutation.isPending && discardMutation.variables) {
+            ids.add(discardMutation.variables);
+        }
+
+        return ids;
+    }, [discardMutation.isPending, discardMutation.variables, markReadMutation.isPending, markReadMutation.variables]);
 
     function updateParams(nextFilters: NotificationFiltersValue, nextPage = 1) {
         const next = new URLSearchParams();
@@ -77,20 +121,29 @@ export function NotificationsPage() {
 
     function clearFilters() {
         const next = new URLSearchParams();
-        next.set("page", "1");
+        next.set("page", String(DEFAULT_PAGE));
         next.set("page_size", String(pageSize));
         setSearchParams(next);
     }
 
     function goToPage(nextPage: number) {
-        updateParams(filters, nextPage);
+        const safeNextPage = Math.min(Math.max(nextPage, 1), totalPages);
+        updateParams(filters, safeNextPage);
     }
 
     function handleMarkRead(notificationId: number) {
+        if (!isPositiveInteger(notificationId)) {
+            return;
+        }
+
         markReadMutation.mutate(notificationId);
     }
 
     function handleDiscard(notificationId: number) {
+        if (!isPositiveInteger(notificationId)) {
+            return;
+        }
+
         const confirmed = window.confirm("Descartar esta notificação?");
 
         if (!confirmed) {
@@ -115,6 +168,10 @@ export function NotificationsPage() {
                     onChange={(nextFilters) => updateParams(nextFilters)}
                     onClear={clearFilters}
                 />
+
+                <div aria-live="polite" className="sr-only">
+                    {notificationsQuery.isFetching ? "Atualizando notificações" : ""}
+                </div>
 
                 {mutationError ? (
                     <ErrorState
@@ -141,7 +198,7 @@ export function NotificationsPage() {
 
                 {!notificationsQuery.isLoading && !notificationsQuery.isError && !hasItems ? (
                     <EmptyState
-                        icon={<Bell className="h-6 w-6" />}
+                        icon={<Bell className="h-6 w-6" aria-hidden="true" />}
                         title="Nenhuma notificação encontrada"
                         description="Quando houver alertas de rega, cuidados ou avisos, eles aparecerão aqui."
                     />
@@ -154,7 +211,7 @@ export function NotificationsPage() {
                                 <NotificationCard
                                     key={notification.id}
                                     notification={notification}
-                                    isMutating={isMutating}
+                                    isMutating={mutatingNotificationIds.has(notification.id)}
                                     onMarkRead={handleMarkRead}
                                     onDiscard={handleDiscard}
                                 />

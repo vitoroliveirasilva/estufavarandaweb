@@ -1,11 +1,15 @@
 import { type FormEvent, useEffect, useState } from "react";
 
+import {
+    NOTIFICATION_STATUSES,
+    type NotificationStatusFilter
+} from "@/features/notifications/types/notificationTypes";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Label } from "@/shared/components/ui/label";
 
 export type NotificationFiltersValue = {
-    status: string;
+    status: NotificationStatusFilter;
 };
 
 type NotificationFiltersProps = {
@@ -15,24 +19,27 @@ type NotificationFiltersProps = {
     onClear: () => void;
 };
 
-const statusOptions = [
-    {
-        value: "",
-        label: "Todas"
-    },
-    {
-        value: "pending",
-        label: "Pendentes"
-    },
-    {
-        value: "read",
-        label: "Lidas"
-    },
-    {
-        value: "discarded",
-        label: "Descartadas"
-    }
-];
+const statusOptions: Array<{
+    value: NotificationStatusFilter;
+    label: string;
+}> = [
+        {
+            value: "",
+            label: "Todas"
+        },
+        {
+            value: NOTIFICATION_STATUSES[0],
+            label: "Pendentes"
+        },
+        {
+            value: NOTIFICATION_STATUSES[1],
+            label: "Lidas"
+        },
+        {
+            value: NOTIFICATION_STATUSES[2],
+            label: "Descartadas"
+        }
+    ];
 
 export function NotificationFilters({
     value,
@@ -40,11 +47,11 @@ export function NotificationFilters({
     onChange,
     onClear
 }: NotificationFiltersProps) {
-    const [draft, setDraft] = useState(value);
+    const [draft, setDraft] = useState<NotificationFiltersValue>(value);
 
     useEffect(() => {
         setDraft(value);
-    }, [value]);
+    }, [value.status]);
 
     function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -54,16 +61,20 @@ export function NotificationFilters({
     return (
         <Card>
             <CardContent className="p-4">
-                <form className="flex flex-col gap-4 sm:flex-row sm:items-end" onSubmit={handleSubmit}>
+                <form
+                    className="flex flex-col gap-4 sm:flex-row sm:items-end"
+                    onSubmit={handleSubmit}
+                >
                     <div className="flex-1 space-y-2">
                         <Label htmlFor="notification-status">Status</Label>
                         <select
                             id="notification-status"
                             value={draft.status}
-                            className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={isFetching}
                             onChange={(event) =>
                                 setDraft({
-                                    status: event.target.value
+                                    status: event.target.value as NotificationStatusFilter
                                 })
                             }
                         >
@@ -82,7 +93,7 @@ export function NotificationFilters({
                         <Button
                             type="button"
                             variant="outline"
-                            disabled={isFetching}
+                            disabled={isFetching && !value.status}
                             onClick={onClear}
                         >
                             Limpar
