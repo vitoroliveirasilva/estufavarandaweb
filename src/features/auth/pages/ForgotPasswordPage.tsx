@@ -1,6 +1,16 @@
-import { type FormEvent } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { CheckCircle2, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
 
+import { getAppErrorMessage } from "@/core/api/apiError";
+import { useForgotPasswordMutation } from "@/features/auth/hooks/useAuthActions";
+import {
+    forgotPasswordSchema,
+    type ForgotPasswordFormValues
+} from "@/features/auth/schemas/authSchemas";
+import { FormErrorMessage } from "@/shared/components/FormErrorMessage";
 import { Button } from "@/shared/components/ui/button";
 import {
     Card,
@@ -12,36 +22,91 @@ import {
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 
+const GENERIC_SUCCESS_MESSAGE =
+    "Se o e-mail estiver cadastrado, você receberá instruções para redefinir sua senha.";
+
 export function ForgotPasswordPage() {
-    function handleSubmit(event: FormEvent<HTMLFormElement>) {
-        event.preventDefault();
-    }
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
+    const forgotPasswordMutation = useForgotPasswordMutation();
+
+    const form = useForm<ForgotPasswordFormValues>({
+        resolver: zodResolver(forgotPasswordSchema),
+        defaultValues: {
+            email: ""
+        }
+    });
+
+    const isSubmitting =
+        form.formState.isSubmitting || forgotPasswordMutation.isPending;
+
+    const apiErrorMessage = forgotPasswordMutation.error
+        ? getAppErrorMessage(forgotPasswordMutation.error)
+        : null;
+
+    const onSubmit = form.handleSubmit(async (values) => {
+        setSuccessMessage(null);
+
+        try {
+            await forgotPasswordMutation.mutateAsync({
+                email: values.email
+            });
+
+            setSuccessMessage(GENERIC_SUCCESS_MESSAGE);
+            form.reset({
+                email: ""
+            });
+        } catch {
+            // O erro amigável aparece na tela pelo parser central.
+        }
+    });
 
     return (
         <Card>
             <CardHeader>
                 <CardTitle>Recuperar senha</CardTitle>
                 <CardDescription>
-                    A mensagem de retorno será sempre genérica para não revelar se o
-                    e-mail existe ou não.
+                    Informe seu e-mail e enviaremos as instruções, caso exista uma conta
+                    cadastrada.
                 </CardDescription>
             </CardHeader>
 
             <CardContent>
-                <form className="space-y-5" onSubmit={handleSubmit}>
+                <form className="space-y-5" onSubmit={onSubmit} noValidate>
+                    {successMessage ? (
+                        <div className="flex gap-3 rounded-xl border border-primary/25 bg-primary/10 px-4 py-3 text-sm text-primary">
+                            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                            <span>{successMessage}</span>
+                        </div>
+                    ) : null}
+
+                    {apiErrorMessage ? (
+                        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                            {apiErrorMessage}
+                        </div>
+                    ) : null}
+
                     <div className="space-y-2">
                         <Label htmlFor="email">E-mail</Label>
                         <Input
                             id="email"
-                            name="email"
                             type="email"
                             autoComplete="email"
                             placeholder="usuario@email.com"
+                            disabled={isSubmitting}
+                            {...form.register("email")}
                         />
+                        <FormErrorMessage message={form.formState.errors.email?.message} />
                     </div>
 
-                    <Button type="submit" className="w-full">
-                        Enviar instruções
+                    <Button type="submit" className="w-full" disabled={isSubmitting}>
+                        {isSubmitting ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Enviando
+                            </>
+                        ) : (
+                            "Enviar instruções"
+                        )}
                     </Button>
 
                     <div className="text-center text-sm">
