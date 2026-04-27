@@ -1,4 +1,10 @@
-import { Navigate, createBrowserRouter } from "react-router-dom";
+import {
+  Link,
+  Navigate,
+  createBrowserRouter,
+  isRouteErrorResponse,
+  useRouteError,
+} from "react-router-dom";
 
 import { App } from "@/app/App";
 import { LoginAttemptsPage } from "@/features/admin/pages/LoginAttemptsPage";
@@ -23,13 +29,90 @@ import { RequireAuth } from "@/core/auth/RequireAuth";
 import { PublicLayout } from "@/shared/layouts/PublicLayout";
 import { RootLayout } from "@/shared/layouts/RootLayout";
 
+type RouteErrorContent = {
+  title: string;
+  message: string;
+};
+
+function getRouteErrorContent(error: unknown): RouteErrorContent {
+  if (isRouteErrorResponse(error)) {
+    if (error.status === 404) {
+      return {
+        title: "Página não encontrada",
+        message: "A rota acessada não existe ou foi movida.",
+      };
+    }
+
+    if (error.status === 401) {
+      return {
+        title: "Sessão expirada",
+        message: "Entre novamente para continuar usando o Estufa da Varanda.",
+      };
+    }
+
+    if (error.status === 403) {
+      return {
+        title: "Acesso negado",
+        message: "Seu usuário não possui permissão para acessar esta área.",
+      };
+    }
+
+    return {
+      title: "Não foi possível carregar a página",
+      message: error.statusText || "Tente novamente em instantes.",
+    };
+  }
+
+  if (error instanceof Error && import.meta.env.DEV) {
+    return {
+      title: "Erro inesperado",
+      message: error.message,
+    };
+  }
+
+  return {
+    title: "Erro inesperado",
+    message: "Ocorreu um problema ao carregar esta tela. Tente novamente em instantes.",
+  };
+}
+
+function RouteErrorBoundary() {
+  const error = useRouteError();
+  const { title, message } = getRouteErrorContent(error);
+
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-background px-4 py-10 text-foreground">
+      <section className="w-full max-w-lg rounded-2xl border bg-card p-6 text-center shadow-sm">
+        <p className="text-sm font-medium text-muted-foreground">Estufa da Varanda</p>
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight">{title}</h1>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">{message}</p>
+        <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+          <Link
+            to="/app"
+            className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            Voltar ao início
+          </Link>
+          <Link
+            to="/login"
+            className="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            Ir para login
+          </Link>
+        </div>
+      </section>
+    </main>
+  );
+}
+
 export const router = createBrowserRouter([
   {
     element: <App />,
+    errorElement: <RouteErrorBoundary />,
     children: [
       {
         index: true,
-        element: <Navigate to="/login" replace />
+        element: <Navigate to="/app" replace />,
       },
       {
         element: (
@@ -40,17 +123,17 @@ export const router = createBrowserRouter([
         children: [
           {
             path: "/login",
-            element: <LoginPage />
+            element: <LoginPage />,
           },
           {
             path: "/forgot-password",
-            element: <ForgotPasswordPage />
+            element: <ForgotPasswordPage />,
           },
           {
             path: "/reset-password",
-            element: <ResetPasswordPage />
-          }
-        ]
+            element: <ResetPasswordPage />,
+          },
+        ],
       },
       {
         path: "/app",
@@ -62,70 +145,70 @@ export const router = createBrowserRouter([
         children: [
           {
             index: true,
-            element: <DashboardPage />
+            element: <DashboardPage />,
           },
           {
             path: "plants",
-            element: <PlantsListPage />
+            element: <PlantsListPage />,
           },
           {
             path: "plants/new",
-            element: <PlantFormPage mode="create" />
+            element: <PlantFormPage mode="create" />,
           },
           {
             path: "plants/:plantId",
-            element: <PlantDetailPage />
+            element: <PlantDetailPage />,
           },
           {
             path: "plants/:plantId/edit",
-            element: <PlantFormPage mode="edit" />
+            element: <PlantFormPage mode="edit" />,
           },
           {
             path: "plants/:plantId/watering",
-            element: <WateringLogsPage />
+            element: <WateringLogsPage />,
           },
           {
             path: "plants/:plantId/events",
-            element: <PlantEventsPage />
+            element: <PlantEventsPage />,
           },
           {
             path: "plants/:plantId/photos",
-            element: <PlantPhotosPage />
+            element: <PlantPhotosPage />,
           },
           {
             path: "plants/:plantId/climate",
-            element: <PlantClimatePage />
+            element: <PlantClimatePage />,
           },
           {
             path: "plants/:plantId/ai",
-            element: <PlantAiPage />
+            element: <PlantAiPage />,
           },
           {
             path: "species",
-            element: <SpeciesListPage />
+            element: <SpeciesListPage />,
           },
           {
             path: "notifications",
-            element: <NotificationsPage />
+            element: <NotificationsPage />,
           },
           {
             path: "settings",
-            element: <SettingsPage />
+            element: <SettingsPage />,
           },
           {
             path: "admin/users",
-            element: <AdminUsersPage />
+            element: <AdminUsersPage />,
           },
           {
             path: "admin/login-attempts",
-            element: <LoginAttemptsPage />
-          }
-        ]
+            element: <LoginAttemptsPage />,
+          },
+        ],
       },
       {
         path: "*",
-        element: <Navigate to="/login" replace />
-      }
-    ]
-  }
+        element: <Navigate to="/app" replace />,
+      },
+    ],
+  },
 ]);
