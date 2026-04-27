@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { Outlet } from "react-router-dom";
 
 import { useAuthUser } from "@/core/auth/authStore";
@@ -12,13 +13,24 @@ export function AuthenticatedLayout() {
 
     const canSeeAdmin = user?.is_admin === true;
 
+    const handleLogout = useCallback(() => {
+        void logout();
+    }, [logout]);
+
     return (
         <div className="min-h-screen bg-background">
+            <a
+                href="#main-content"
+                className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-xl focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground focus:shadow-sm"
+            >
+                Pular para o conteúdo
+            </a>
+
             <Sidebar
                 user={user}
                 canSeeAdmin={canSeeAdmin}
                 isLoggingOut={isLoggingOut}
-                onLogout={logout}
+                onLogout={handleLogout}
             />
 
             <div className="lg:pl-72">
@@ -26,12 +38,12 @@ export function AuthenticatedLayout() {
                     user={user}
                     canSeeAdmin={canSeeAdmin}
                     isLoggingOut={isLoggingOut}
-                    onLogout={logout}
+                    onLogout={handleLogout}
                 />
 
                 <MobileNav canSeeAdmin={canSeeAdmin} />
 
-                <main className="px-4 py-6 sm:px-6 lg:px-8">
+                <main id="main-content" className="px-4 py-6 sm:px-6 lg:px-8" tabIndex={-1}>
                     <div className="mx-auto w-full max-w-7xl">
                         <Outlet />
                     </div>
