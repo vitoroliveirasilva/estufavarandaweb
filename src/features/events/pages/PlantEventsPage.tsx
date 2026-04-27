@@ -1,4 +1,5 @@
 import { ArrowLeft, ListChecks } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
 import { getAppErrorMessage } from "@/core/api/apiError";
@@ -23,13 +24,54 @@ import {
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 
-function parsePositiveInt(value: string | null | undefined, fallback: number): number {
+const DEFAULT_PAGE = 1;
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_EVENT_TYPE_LENGTH = 64;
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
+
+function parsePositiveInt(
+    value: string | null | undefined,
+    fallback: number,
+    options?: readonly number[]
+): number {
     if (!value) {
         return fallback;
     }
 
     const parsed = Number(value);
-    return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+        return fallback;
+    }
+
+    if (options?.length && !options.includes(parsed)) {
+        return fallback;
+    }
+
+    return parsed;
+}
+
+function normalizeEventType(value: string | null | undefined): string {
+    return value?.trim().slice(0, MAX_EVENT_TYPE_LENGTH) ?? "";
+}
+
+function buildSearchParams(params: {
+    page: number;
+    pageSize: number;
+    eventType: string;
+}): URLSearchParams {
+    const searchParams = new URLSearchParams();
+
+    searchParams.set("page", String(params.page));
+    searchParams.set("page_size", String(params.pageSize));
+
+    const normalizedEventType = normalizeEventType(params.eventType);
+
+    if (normalizedEventType) {
+        searchParams.set("event_type", normalizedEventType);
+    }
+
+    return searchParams;
 }
 
 export function PlantEventsPage() {
@@ -37,17 +79,95 @@ export function PlantEventsPage() {
     const [searchParams, setSearchParams] = useSearchParams();
 
     const parsedPlantId = parsePositiveInt(plantId, 0);
-    const page = parsePositiveInt(searchParams.get("page"), 1);
-    const pageSize = parsePositiveInt(searchParams.get("page_size"), 20);
-    const eventType = searchParams.get("event_type") ?? "";
+    const page = parsePositiveInt(searchParams.get("page"), DEFAULT_PAGE);
+    const pageSize = parsePositiveInt(
+        searchParams.get("page_size"),
+        DEFAULT_PAGE_SIZE,
+        PAGE_SIZE_OPTIONS
+    );
+    const eventType = normalizeEventType(searchParams.get("event_type"));
+    const [eventTypeFilter, setEventTypeFilter] = useState(eventType);
+
+    const eventQueryParams = useMemo(
+        () => ({
+            page,
+            page_size: pageSize,
+            event_type: eventType || undefined
+        }),
+        [eventType, page, pageSize]
+    );
 
     const plantQuery = usePlantDetail(parsedPlantId, parsedPlantId > 0);
-    const eventsQuery = usePlantEvents(parsedPlantId, {
-        page,
-        page_size: pageSize,
-        event_type: eventType || undefined
-    });
+    const eventsQuery = usePlantEvents(parsedPlantId, eventQueryParams);
     const createMutation = useCreatePlantEventMutation(parsedPlantId);
+
+    const total = eventsQuery.data?.meta?.total ?? eventsQuery.data?.items.length ?? 0;
+    const totalPages = Math.max(
+        1,
+        eventsQuery.data?.meta?.total_pages ?? Math.ceil(total / pageSize)
+    );
+    const hasEvents = Boolean(eventsQuery.data?.items.length);
+
+    useEffect(() => {
+        setEventTypeFilter(eventType);
+    }, [eventType]);
+
+    useEffect(() => {
+        const normalizedParams = buildSearchParams({
+            page,
+            pageSize,
+            eventType
+        });
+
+        if (normalizedParams.toString() !== searchParams.toString()) {
+            setSearchParams(normalizedParams, {
+                replace: true
+            });
+        }
+    }, [eventType, page, pageSize, searchParams, setSearchParams]);
+
+    useEffect(() => {
+        if (!eventsQuery.data || page <= totalPages) {
+            return;
+        }
+
+        setSearchParams(
+            buildSearchParams({
+                page: totalPages,
+                pageSize,
+                eventType
+            }),
+            {
+                replace: true
+            }
+        );
+    }, [eventType, eventsQuery.data, page, pageSize, setSearchParams, totalPages]);
+
+    function updateParams(next: {
+        page?: number;
+        pageSize?: number;
+        eventType?: string;
+        replace?: boolean;
+    }) {
+        setSearchParams(
+            buildSearchParams({
+                page: next.page ?? page,
+                pageSize: next.pageSize ?? pageSize,
+                eventType: next.eventType ?? eventType
+            }),
+            {
+                replace: next.replace ?? false
+            }
+        );
+    }
+
+    async function handleCreateEvent(values: PlantEventFormValues) {
+        await createMutation.mutateAsync(normalizePlantEventFormValues(values));
+
+        updateParams({
+            page: DEFAULT_PAGE
+        });
+    }
 
     if (!parsedPlantId) {
         return (
@@ -56,34 +176,6 @@ export function PlantEventsPage() {
                 description="O identificador informado na URL não é válido."
             />
         );
-    }
-
-    const total = eventsQuery.data?.meta?.total ?? eventsQuery.data?.items.length ?? 0;
-    const totalPages =
-        eventsQuery.data?.meta?.total_pages ?? Math.max(1, Math.ceil(total / pageSize));
-    const hasEvents = Boolean(eventsQuery.data?.items.length);
-
-    function updateParams(next: {
-        page?: number;
-        pageSize?: number;
-        eventType?: string;
-    }) {
-        const params = new URLSearchParams();
-
-        params.set("page", String(next.page ?? page));
-        params.set("page_size", String(next.pageSize ?? pageSize));
-
-        const normalizedEventType = next.eventType ?? eventType;
-
-        if (normalizedEventType.trim()) {
-            params.set("event_type", normalizedEventType.trim());
-        }
-
-        setSearchParams(params);
-    }
-
-    async function handleCreateEvent(values: PlantEventFormValues) {
-        await createMutation.mutateAsync(normalizePlantEventFormValues(values));
     }
 
     return (
@@ -95,7 +187,7 @@ export function PlantEventsPage() {
                 actions={
                     <Button asChild variant="outline">
                         <Link to={`/app/plants/${parsedPlantId}`}>
-                            <ArrowLeft className="mr-2 h-4 w-4" />
+                            <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
                             Voltar para planta
                         </Link>
                     </Button>
@@ -118,8 +210,8 @@ export function PlantEventsPage() {
                             onSubmit={(event) => {
                                 event.preventDefault();
                                 updateParams({
-                                    page: 1,
-                                    eventType
+                                    page: DEFAULT_PAGE,
+                                    eventType: eventTypeFilter
                                 });
                             }}
                         >
@@ -127,37 +219,32 @@ export function PlantEventsPage() {
                                 <Label htmlFor="event-filter">Filtrar por tipo</Label>
                                 <Input
                                     id="event-filter"
-                                    value={eventType}
+                                    value={eventTypeFilter}
                                     placeholder="observation"
-                                    onChange={(event) => {
-                                        const params = new URLSearchParams(searchParams);
-                                        const value = event.target.value;
-
-                                        params.set("page", "1");
-                                        params.set("page_size", String(pageSize));
-
-                                        if (value.trim()) {
-                                            params.set("event_type", value);
-                                        } else {
-                                            params.delete("event_type");
-                                        }
-
-                                        setSearchParams(params);
-                                    }}
+                                    autoComplete="off"
+                                    maxLength={MAX_EVENT_TYPE_LENGTH}
+                                    onChange={(event) => setEventTypeFilter(event.target.value)}
                                 />
                             </div>
 
                             <div className="flex gap-2">
+                                <Button type="submit" disabled={eventsQuery.isFetching}>
+                                    Aplicar
+                                </Button>
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    disabled={!eventType || eventsQuery.isFetching}
-                                    onClick={() =>
-                                        updateParams({
-                                            page: 1,
-                                            eventType: ""
-                                        })
+                                    disabled={
+                                        (!eventType && !eventTypeFilter.trim()) ||
+                                        eventsQuery.isFetching
                                     }
+                                    onClick={() => {
+                                        setEventTypeFilter("");
+                                        updateParams({
+                                            page: DEFAULT_PAGE,
+                                            eventType: ""
+                                        });
+                                    }}
                                 >
                                     Limpar
                                 </Button>
@@ -165,6 +252,15 @@ export function PlantEventsPage() {
                         </form>
                     </CardContent>
                 </Card>
+
+                {plantQuery.isError ? (
+                    <ErrorState
+                        title="Não foi possível carregar os dados da planta"
+                        description={getAppErrorMessage(plantQuery.error)}
+                        actionLabel="Tentar novamente"
+                        onAction={() => void plantQuery.refetch()}
+                    />
+                ) : null}
 
                 {eventsQuery.isLoading ? (
                     <LoadingState
@@ -184,7 +280,7 @@ export function PlantEventsPage() {
 
                 {!eventsQuery.isLoading && !eventsQuery.isError && !hasEvents ? (
                     <EmptyState
-                        icon={<ListChecks className="h-6 w-6" />}
+                        icon={<ListChecks className="h-6 w-6" aria-hidden="true" />}
                         title="Nenhum evento registrado"
                         description="Crie o primeiro evento para acompanhar a evolução desta planta."
                     />

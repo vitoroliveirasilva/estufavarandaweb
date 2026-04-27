@@ -28,8 +28,16 @@ function formatDateTime(value: string): string {
     });
 }
 
-function hasMetadata(metadata: Record<string, unknown> | null): boolean {
+function hasMetadata(metadata: Record<string, unknown> | null): metadata is Record<string, unknown> {
     return Boolean(metadata && Object.keys(metadata).length > 0);
+}
+
+function getEventTitle(event: PlantEvent): string {
+    return event.title.trim() || "Evento sem título";
+}
+
+function getEventDescription(event: PlantEvent): string {
+    return event.description?.trim() || "Sem descrição.";
 }
 
 export function EventList({ events }: EventListProps) {
@@ -50,29 +58,38 @@ export function EventList({ events }: EventListProps) {
                             className="flex gap-4 rounded-2xl border bg-background p-4"
                         >
                             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-secondary text-primary">
-                                <ListChecks className="h-5 w-5" />
+                                <ListChecks className="h-5 w-5" aria-hidden="true" />
                             </div>
 
                             <div className="min-w-0 flex-1">
                                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                                    <div>
-                                        <h3 className="font-medium">{event.title}</h3>
+                                    <div className="min-w-0">
+                                        <h3 className="break-words font-medium">
+                                            {getEventTitle(event)}
+                                        </h3>
                                         <p className="mt-1 text-sm text-muted-foreground">
                                             {formatDateTime(event.occurred_at)}
                                         </p>
                                     </div>
 
-                                    <EventTypeBadge type={event.event_type} />
+                                    <div className="shrink-0">
+                                        <EventTypeBadge type={event.event_type} />
+                                    </div>
                                 </div>
 
-                                <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
-                                    {event.description?.trim() || "Sem descrição."}
+                                <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-6 text-muted-foreground">
+                                    {getEventDescription(event)}
                                 </p>
 
                                 {hasMetadata(event.metadata_json) ? (
-                                    <pre className="mt-3 overflow-x-auto rounded-xl border bg-muted/50 p-3 text-xs text-muted-foreground">
-                                        {JSON.stringify(event.metadata_json, null, 2)}
-                                    </pre>
+                                    <details className="mt-3 rounded-xl border bg-muted/50 p-3 text-xs text-muted-foreground">
+                                        <summary className="cursor-pointer select-none font-medium text-foreground">
+                                            Ver metadados
+                                        </summary>
+                                        <pre className="mt-3 overflow-x-auto whitespace-pre-wrap break-words">
+                                            {JSON.stringify(event.metadata_json, null, 2)}
+                                        </pre>
+                                    </details>
                                 ) : null}
                             </div>
                         </article>

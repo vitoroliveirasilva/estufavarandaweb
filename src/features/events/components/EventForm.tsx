@@ -3,12 +3,12 @@ import { Loader2, Plus } from "lucide-react";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 
+import { toDatetimeLocalValue } from "@/features/events/hooks/usePlantEvents";
 import {
     defaultPlantEventFormValues,
     plantEventSchema,
     type PlantEventFormValues
 } from "@/features/events/schemas/eventSchemas";
-import { toDatetimeLocalValue } from "@/features/events/hooks/usePlantEvents";
 import { FormErrorMessage } from "@/shared/components/FormErrorMessage";
 import { Button } from "@/shared/components/ui/button";
 import {
@@ -20,6 +20,11 @@ import {
 } from "@/shared/components/ui/card";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
+
+const MAX_EVENT_TYPE_LENGTH = 64;
+const MAX_TITLE_LENGTH = 140;
+const MAX_DESCRIPTION_LENGTH = 2_000;
+const MAX_METADATA_LENGTH = 5_000;
 
 type EventFormProps = {
     isSubmitting?: boolean;
@@ -37,14 +42,19 @@ export function EventForm({
         defaultValues: {
             ...defaultPlantEventFormValues,
             occurred_at: toDatetimeLocalValue()
-        }
+        },
+        shouldFocusError: true
     });
 
     const disabled = isSubmitting || form.formState.isSubmitting;
 
     useEffect(() => {
         if (!form.getValues("occurred_at")) {
-            form.setValue("occurred_at", toDatetimeLocalValue());
+            form.setValue("occurred_at", toDatetimeLocalValue(), {
+                shouldDirty: false,
+                shouldTouch: false,
+                shouldValidate: false
+            });
         }
     }, [form]);
 
@@ -68,9 +78,16 @@ export function EventForm({
             </CardHeader>
 
             <CardContent>
-                <form className="grid gap-5 md:grid-cols-2" onSubmit={handleSubmit} noValidate>
+                <form
+                    className="grid gap-5 md:grid-cols-2"
+                    onSubmit={(event) => void handleSubmit(event)}
+                    noValidate
+                >
                     {apiErrorMessage ? (
-                        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive md:col-span-2">
+                        <div
+                            className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive md:col-span-2"
+                            role="alert"
+                        >
                             {apiErrorMessage}
                         </div>
                     ) : null}
@@ -80,7 +97,10 @@ export function EventForm({
                         <Input
                             id="event_type"
                             placeholder="observation"
+                            autoComplete="off"
+                            maxLength={MAX_EVENT_TYPE_LENGTH}
                             disabled={disabled}
+                            aria-invalid={Boolean(form.formState.errors.event_type)}
                             {...form.register("event_type")}
                         />
                         <p className="text-xs leading-5 text-muted-foreground">
@@ -95,6 +115,7 @@ export function EventForm({
                             id="occurred_at"
                             type="datetime-local"
                             disabled={disabled}
+                            aria-invalid={Boolean(form.formState.errors.occurred_at)}
                             {...form.register("occurred_at")}
                         />
                         <FormErrorMessage message={form.formState.errors.occurred_at?.message} />
@@ -105,7 +126,10 @@ export function EventForm({
                         <Input
                             id="title"
                             placeholder="Observação inicial"
+                            autoComplete="off"
+                            maxLength={MAX_TITLE_LENGTH}
                             disabled={disabled}
+                            aria-invalid={Boolean(form.formState.errors.title)}
                             {...form.register("title")}
                         />
                         <FormErrorMessage message={form.formState.errors.title?.message} />
@@ -117,7 +141,9 @@ export function EventForm({
                             id="description"
                             rows={4}
                             placeholder="Folhas firmes, substrato seco, brotação nova..."
+                            maxLength={MAX_DESCRIPTION_LENGTH}
                             disabled={disabled}
+                            aria-invalid={Boolean(form.formState.errors.description)}
                             className="flex w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background transition placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                             {...form.register("description")}
                         />
@@ -130,7 +156,10 @@ export function EventForm({
                             id="metadata_json"
                             rows={4}
                             placeholder='{"source":"web"}'
+                            maxLength={MAX_METADATA_LENGTH}
+                            spellCheck={false}
                             disabled={disabled}
+                            aria-invalid={Boolean(form.formState.errors.metadata_json)}
                             className="flex w-full rounded-xl border border-input bg-background px-3 py-2 font-mono text-sm ring-offset-background transition placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                             {...form.register("metadata_json")}
                         />
@@ -141,12 +170,15 @@ export function EventForm({
                         <Button type="submit" disabled={disabled}>
                             {disabled ? (
                                 <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    <Loader2
+                                        className="mr-2 h-4 w-4 animate-spin"
+                                        aria-hidden="true"
+                                    />
                                     Criando
                                 </>
                             ) : (
                                 <>
-                                    <Plus className="mr-2 h-4 w-4" />
+                                    <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
                                     Criar evento
                                 </>
                             )}

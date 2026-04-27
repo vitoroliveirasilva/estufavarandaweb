@@ -30,8 +30,13 @@ function parseMetadata(value: string | undefined): Record<string, unknown> | und
     return undefined;
   }
 
-  const parsed = JSON.parse(normalized) as Record<string, unknown>;
-  return parsed;
+  const parsed = JSON.parse(normalized) as unknown;
+
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    throw new Error("Os metadados devem ser um objeto JSON válido.");
+  }
+
+  return parsed as Record<string, unknown>;
 }
 
 function toIsoWithLocalOffset(value: string): string {
@@ -73,7 +78,7 @@ export function normalizePlantEventFormValues(
   values: PlantEventFormValues
 ): CreatePlantEventPayload {
   return {
-    event_type: values.event_type.trim(),
+    event_type: values.event_type.trim().toLowerCase(),
     occurred_at: toIsoWithLocalOffset(values.occurred_at),
     title: values.title.trim(),
     description: cleanString(values.description),
@@ -85,7 +90,8 @@ export function usePlantEvents(plantId: number, params: PlantEventsParams) {
   return useQuery({
     queryKey: plantEventQueryKeys.list(plantId, params),
     queryFn: () => listPlantEvents(plantId, params),
-    enabled: plantId > 0
+    enabled: plantId > 0,
+    placeholderData: (previousData) => previousData
   });
 }
 
