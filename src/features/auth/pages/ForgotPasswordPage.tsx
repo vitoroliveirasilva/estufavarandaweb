@@ -8,7 +8,7 @@ import { getAppErrorMessage } from "@/core/api/apiError";
 import { useForgotPasswordMutation } from "@/features/auth/hooks/useAuthActions";
 import {
     forgotPasswordSchema,
-    type ForgotPasswordFormValues
+    type ForgotPasswordFormValues,
 } from "@/features/auth/schemas/authSchemas";
 import { FormErrorMessage } from "@/shared/components/FormErrorMessage";
 import { Button } from "@/shared/components/ui/button";
@@ -17,7 +17,7 @@ import {
     CardContent,
     CardDescription,
     CardHeader,
-    CardTitle
+    CardTitle,
 } from "@/shared/components/ui/card";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
@@ -32,28 +32,29 @@ export function ForgotPasswordPage() {
     const form = useForm<ForgotPasswordFormValues>({
         resolver: zodResolver(forgotPasswordSchema),
         defaultValues: {
-            email: ""
-        }
+            email: "",
+        },
     });
 
     const isSubmitting =
         form.formState.isSubmitting || forgotPasswordMutation.isPending;
 
-    const apiErrorMessage = forgotPasswordMutation.error
-        ? getAppErrorMessage(forgotPasswordMutation.error)
-        : null;
+    const apiErrorMessage =
+        !successMessage && forgotPasswordMutation.error
+            ? getAppErrorMessage(forgotPasswordMutation.error)
+            : null;
 
     const onSubmit = form.handleSubmit(async (values) => {
         setSuccessMessage(null);
 
         try {
             await forgotPasswordMutation.mutateAsync({
-                email: values.email
+                email: values.email,
             });
 
             setSuccessMessage(GENERIC_SUCCESS_MESSAGE);
             form.reset({
-                email: ""
+                email: "",
             });
         } catch {
             // O erro amigável aparece na tela pelo parser central.
@@ -73,14 +74,22 @@ export function ForgotPasswordPage() {
             <CardContent>
                 <form className="space-y-5" onSubmit={onSubmit} noValidate>
                     {successMessage ? (
-                        <div className="flex gap-3 rounded-xl border border-primary/25 bg-primary/10 px-4 py-3 text-sm text-primary">
+                        <div
+                            aria-live="polite"
+                            className="flex gap-3 rounded-xl border border-primary/25 bg-primary/10 px-4 py-3 text-sm text-primary"
+                            role="status"
+                        >
                             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
                             <span>{successMessage}</span>
                         </div>
                     ) : null}
 
                     {apiErrorMessage ? (
-                        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                        <div
+                            aria-live="polite"
+                            className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+                            role="alert"
+                        >
                             {apiErrorMessage}
                         </div>
                     ) : null}
@@ -90,8 +99,11 @@ export function ForgotPasswordPage() {
                         <Input
                             id="email"
                             type="email"
+                            autoCapitalize="none"
                             autoComplete="email"
+                            inputMode="email"
                             placeholder="usuario@email.com"
+                            spellCheck={false}
                             disabled={isSubmitting}
                             {...form.register("email")}
                         />

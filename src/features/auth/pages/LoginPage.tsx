@@ -7,7 +7,7 @@ import { getAppErrorMessage } from "@/core/api/apiError";
 import { useLoginMutation } from "@/features/auth/hooks/useAuthActions";
 import {
     loginSchema,
-    type LoginFormValues
+    type LoginFormValues,
 } from "@/features/auth/schemas/authSchemas";
 import { AppPasswordInput } from "@/shared/components/AppPasswordInput";
 import { FormErrorMessage } from "@/shared/components/FormErrorMessage";
@@ -17,29 +17,60 @@ import {
     CardContent,
     CardDescription,
     CardHeader,
-    CardTitle
+    CardTitle,
 } from "@/shared/components/ui/card";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 
+const DEFAULT_AUTHENTICATED_PATH = "/app";
+const BLOCKED_PUBLIC_REDIRECT_PREFIXES = [
+    "/login",
+    "/forgot-password",
+    "/reset-password",
+] as const;
+
+type RedirectState = {
+    from?: {
+        pathname?: unknown;
+        search?: unknown;
+        hash?: unknown;
+    };
+};
+
+function isSafeInternalPath(pathname: string): boolean {
+    return (
+        pathname.startsWith("/") &&
+        !pathname.startsWith("//") &&
+        !pathname.includes("\\") &&
+        !BLOCKED_PUBLIC_REDIRECT_PREFIXES.some((prefix) =>
+            pathname.startsWith(prefix),
+        )
+    );
+}
+
+function normalizeUrlPart(value: unknown, prefix: "?" | "#"): string {
+    return typeof value === "string" && value.startsWith(prefix) ? value : "";
+}
+
 function getRedirectPath(state: unknown): string {
     if (typeof state !== "object" || state === null) {
-        return "/app";
+        return DEFAULT_AUTHENTICATED_PATH;
     }
 
-    const from = (state as {
-        from?: {
-            pathname?: string;
-            search?: string;
-            hash?: string;
-        };
-    }).from;
+    const from = (state as RedirectState).from;
 
-    if (!from?.pathname || from.pathname.startsWith("/login")) {
-        return "/app";
+    if (typeof from?.pathname !== "string") {
+        return DEFAULT_AUTHENTICATED_PATH;
     }
 
-    return `${from.pathname}${from.search ?? ""}${from.hash ?? ""}`;
+    if (!isSafeInternalPath(from.pathname)) {
+        return DEFAULT_AUTHENTICATED_PATH;
+    }
+
+    return `${from.pathname}${normalizeUrlPart(from.search, "?")}${normalizeUrlPart(
+        from.hash,
+        "#",
+    )}`;
 }
 
 export function LoginPage() {
@@ -51,8 +82,8 @@ export function LoginPage() {
         resolver: zodResolver(loginSchema),
         defaultValues: {
             email: "",
-            password: ""
-        }
+            password: "",
+        },
     });
 
     const isSubmitting = form.formState.isSubmitting || loginMutation.isPending;
@@ -65,7 +96,7 @@ export function LoginPage() {
             await loginMutation.mutateAsync({
                 email: values.email,
                 password: values.password,
-                device_name: "Web"
+                device_name: "Web",
             });
 
             navigate(getRedirectPath(location.state), { replace: true });
@@ -86,7 +117,11 @@ export function LoginPage() {
             <CardContent>
                 <form className="space-y-5" onSubmit={onSubmit} noValidate>
                     {apiErrorMessage ? (
-                        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                        <div
+                            aria-live="polite"
+                            className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+                            role="alert"
+                        >
                             {apiErrorMessage}
                         </div>
                     ) : null}
@@ -96,8 +131,11 @@ export function LoginPage() {
                         <Input
                             id="email"
                             type="email"
+                            autoCapitalize="none"
                             autoComplete="email"
+                            inputMode="email"
                             placeholder="usuario@email.com"
+                            spellCheck={false}
                             disabled={isSubmitting}
                             {...form.register("email")}
                         />
@@ -113,7 +151,9 @@ export function LoginPage() {
                             disabled={isSubmitting}
                             {...form.register("password")}
                         />
-                        <FormErrorMessage message={form.formState.errors.password?.message} />
+                        <FormErrorMessage
+                            message={form.formState.errors.password?.message}
+                        />
                     </div>
 
                     <Button type="submit" className="w-full" disabled={isSubmitting}>

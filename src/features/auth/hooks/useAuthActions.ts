@@ -35,16 +35,25 @@ export function useLoginMutation() {
 
   return useMutation({
     mutationFn: async (payload: LoginRequest) => {
-      const result = await login(payload);
+      tokenStorage.clear();
+      queryClient.removeQueries({ queryKey: authQueryKeys.root });
 
-      tokenStorage.setTokens(result.tokens);
+      try {
+        const result = await login(payload);
+        tokenStorage.setTokens(result.tokens);
 
-      const user = result.user ?? (await getCurrentUser());
+        const user = result.user ?? (await getCurrentUser());
 
-      setAuthenticated(user);
-      await queryClient.invalidateQueries({ queryKey: authQueryKeys.root });
+        setAuthenticated(user);
+        queryClient.setQueryData(authQueryKeys.me, user);
 
-      return user;
+        return user;
+      } catch (error) {
+        tokenStorage.clear();
+        queryClient.removeQueries({ queryKey: authQueryKeys.root });
+        setUnauthenticated();
+        throw error;
+      }
     },
   });
 }
@@ -92,7 +101,11 @@ export function useLogout() {
   });
 
   return {
-    logout: () => mutation.mutate(),
+    logout: () => {
+      if (!mutation.isPending) {
+        mutation.mutate();
+      }
+    },
     logoutAsync: mutation.mutateAsync,
     isLoggingOut: mutation.isPending,
     errorMessage: mutation.error ? getAppErrorMessage(mutation.error) : null,
