@@ -15,13 +15,13 @@ import {
 } from "lucide-react";
 
 export type AppNavItem = {
-  label: string;
-  path: string;
-  icon: LucideIcon;
-  exact?: boolean;
+  readonly label: string;
+  readonly path: string;
+  readonly icon: LucideIcon;
+  readonly exact?: boolean;
 };
 
-export const mainNavItems: AppNavItem[] = [
+export const mainNavItems = [
   {
     label: "Dashboard",
     path: "/app",
@@ -48,9 +48,9 @@ export const mainNavItems: AppNavItem[] = [
     path: "/app/settings",
     icon: Settings
   }
-];
+] as const satisfies readonly AppNavItem[];
 
-export const preparedNavItems: AppNavItem[] = [
+export const preparedNavItems = [
   {
     label: "Regas",
     path: "/app/plants/1/watering",
@@ -76,9 +76,9 @@ export const preparedNavItems: AppNavItem[] = [
     path: "/app/plants/1/ai",
     icon: Bot
   }
-];
+] as const satisfies readonly AppNavItem[];
 
-export const adminNavItems: AppNavItem[] = [
+export const adminNavItems = [
   {
     label: "Usuários",
     path: "/app/admin/users",
@@ -89,4 +89,4 @@ export const adminNavItems: AppNavItem[] = [
     path: "/app/admin/login-attempts",
     icon: Shield
   }
-];
+] as const satisfies readonly AppNavItem[];
