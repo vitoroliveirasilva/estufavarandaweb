@@ -18,6 +18,8 @@ import { PlantsListPage } from "@/features/plants/pages/PlantsListPage";
 import { SettingsPage } from "@/features/settings/pages/SettingsPage";
 import { SpeciesListPage } from "@/features/species/pages/SpeciesListPage";
 import { WateringLogsPage } from "@/features/watering/pages/WateringLogsPage";
+import { PublicOnlyRoute } from "@/core/auth/PublicOnlyRoute";
+import { RequireAuth } from "@/core/auth/RequireAuth";
 import { PublicLayout } from "@/shared/layouts/PublicLayout";
 import { RootLayout } from "@/shared/layouts/RootLayout";
 
@@ -30,7 +32,11 @@ export const router = createBrowserRouter([
         element: <Navigate to="/login" replace />
       },
       {
-        element: <PublicLayout />,
+        element: (
+          <PublicOnlyRoute>
+            <PublicLayout />
+          </PublicOnlyRoute>
+        ),
         children: [
           {
             path: "/login",
@@ -48,7 +54,11 @@ export const router = createBrowserRouter([
       },
       {
         path: "/app",
-        element: <RootLayout />,
+        element: (
+          <RequireAuth>
+            <RootLayout />
+          </RequireAuth>
+        ),
         children: [
           {
             index: true,
