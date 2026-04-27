@@ -19,18 +19,43 @@ import { LoadingState } from "@/shared/components/LoadingState";
 import { PageHeader } from "@/shared/components/PageHeader";
 import { Button } from "@/shared/components/ui/button";
 
-function parsePositiveInt(value: string | null | undefined, fallback: number): number {
+const DEFAULT_PAGE = 1;
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100;
+
+function parsePositiveInt(
+    value: string | null | undefined,
+    fallback: number,
+    max?: number
+): number {
     if (!value) {
         return fallback;
     }
 
     const parsed = Number(value);
-    return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+        return fallback;
+    }
+
+    return typeof max === "number" ? Math.min(parsed, max) : parsed;
 }
 
-function openBlobInNewTab(blob: Blob): void {
+function openBlobInNewTab(blob: Blob, fallbackFilename: string): void {
+    if (blob.size <= 0) {
+        throw new Error("Arquivo da foto não encontrado.");
+    }
+
     const objectUrl = URL.createObjectURL(blob);
-    window.open(objectUrl, "_blank", "noopener,noreferrer");
+    const link = document.createElement("a");
+
+    link.href = objectUrl;
+    link.target = "_blank";
+    link.download = fallbackFilename;
+    link.rel = "noopener noreferrer";
+    document.body.append(link);
+    link.click();
+    link.remove();
 
     window.setTimeout(() => {
         URL.revokeObjectURL(objectUrl);
@@ -42,8 +67,12 @@ export function PlantPhotosPage() {
     const [searchParams, setSearchParams] = useSearchParams();
 
     const parsedPlantId = parsePositiveInt(plantId, 0);
-    const page = parsePositiveInt(searchParams.get("page"), 1);
-    const pageSize = parsePositiveInt(searchParams.get("page_size"), 20);
+    const page = parsePositiveInt(searchParams.get("page"), DEFAULT_PAGE);
+    const pageSize = parsePositiveInt(
+        searchParams.get("page_size"),
+        DEFAULT_PAGE_SIZE,
+        MAX_PAGE_SIZE
+    );
 
     const plantQuery = usePlantDetail(parsedPlantId, parsedPlantId > 0);
     const photosQuery = usePlantPhotos(parsedPlantId, {
@@ -68,14 +97,14 @@ export function PlantPhotosPage() {
     const totalPages =
         photosQuery.data?.meta?.total_pages ?? Math.max(1, Math.ceil(total / pageSize));
     const hasPhotos = Boolean(photosQuery.data?.items.length);
-    const mutationError =
-        uploadMutation.error ?? deleteMutation.error ?? downloadMutation.error;
+    const mutationError = deleteMutation.error ?? downloadMutation.error;
     const isMutating =
         uploadMutation.isPending || deleteMutation.isPending || downloadMutation.isPending;
 
     function goToPage(nextPage: number) {
+        const normalizedNextPage = Math.min(Math.max(nextPage, DEFAULT_PAGE), totalPages);
         const next = new URLSearchParams(searchParams);
-        next.set("page", String(nextPage));
+        next.set("page", String(normalizedNextPage));
         next.set("page_size", String(pageSize));
         setSearchParams(next);
     }
@@ -87,14 +116,14 @@ export function PlantPhotosPage() {
     async function handleOpen(photoId: number) {
         try {
             const blob = await downloadMutation.mutateAsync(photoId);
-            openBlobInNewTab(blob);
+            openBlobInNewTab(blob, `planta-${parsedPlantId}-foto-${photoId}`);
         } catch {
             // O erro é exibido abaixo.
         }
     }
 
     function handleDelete(photoId: number) {
-        const confirmed = window.confirm("Excluir esta foto?");
+        const confirmed = window.confirm("Excluir esta foto? Esta ação não pode ser desfeita.");
 
         if (!confirmed) {
             return;
@@ -177,7 +206,7 @@ export function PlantPhotosPage() {
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    disabled={page <= 1 || photosQuery.isFetching}
+                                    disabled={page <= DEFAULT_PAGE || photosQuery.isFetching}
                                     onClick={() => goToPage(page - 1)}
                                 >
                                     Anterior

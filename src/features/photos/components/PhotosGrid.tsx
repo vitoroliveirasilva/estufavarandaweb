@@ -1,11 +1,11 @@
-import type { PlantPhoto } from "@/features/photos/types/photoTypes";
 import { PhotoCard } from "@/features/photos/components/PhotoCard";
+import type { PlantPhoto } from "@/features/photos/types/photoTypes";
 
 type PhotosGridProps = {
     photos: PlantPhoto[];
     isMutating?: boolean;
-    onOpen: (photoId: number) => void;
-    onDelete: (photoId: number) => void;
+    onOpen: (photoId: number) => Promise<void> | void;
+    onDelete: (photoId: number) => Promise<void> | void;
 };
 
 export function PhotosGrid({

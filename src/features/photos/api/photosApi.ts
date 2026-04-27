@@ -5,21 +5,46 @@ import type {
   PhotoListParams,
   PlantPhoto,
   UploadPhotoPayload,
-  UploadPhotoResponse
+  UploadPhotoResponse,
 } from "@/features/photos/types/photoTypes";
 
-function cleanParams(params: PhotoListParams): Record<string, string | number | boolean> {
-  const cleaned: Record<string, string | number | boolean> = {};
+const DEFAULT_PAGE = 1;
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100;
 
-  Object.entries(params).forEach(([key, value]) => {
-    if (value === undefined || value === null || value === "") {
-      return;
-    }
+type QueryParamValue = string | number | boolean;
 
-    cleaned[key] = value;
-  });
+function assertPositiveInteger(value: number, fieldName: string): void {
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new Error(`${fieldName} inválido.`);
+  }
+}
 
-  return cleaned;
+function normalizePositiveInteger(
+  value: unknown,
+  fallback: number,
+  max?: number,
+): number {
+  const numberValue = Number(value);
+
+  if (!Number.isInteger(numberValue) || numberValue <= 0) {
+    return fallback;
+  }
+
+  return typeof max === "number" ? Math.min(numberValue, max) : numberValue;
+}
+
+function cleanParams(
+  params: PhotoListParams = {},
+): Record<string, QueryParamValue> {
+  return {
+    page: normalizePositiveInteger(params.page, DEFAULT_PAGE),
+    page_size: normalizePositiveInteger(
+      params.page_size,
+      DEFAULT_PAGE_SIZE,
+      MAX_PAGE_SIZE,
+    ),
+  };
 }
 
 function appendOptional(formData: FormData, key: string, value?: string): void {
@@ -30,27 +55,11 @@ function appendOptional(formData: FormData, key: string, value?: string): void {
   }
 }
 
-export async function listPlantPhotos(
-  plantId: number,
-  params: PhotoListParams = {}
-): Promise<PaginatedPhotosResult> {
-  const response = await apiClient.get<ApiEnvelope<PlantPhoto[]>>(
-    `/plants/${plantId}/photos`,
-    {
-      params: cleanParams(params)
-    }
-  );
+function buildPhotoFormData(payload: UploadPhotoPayload): FormData {
+  if (!payload.file) {
+    throw new Error("Arquivo não selecionado.");
+  }
 
-  return {
-    items: unwrapEnvelope(response.data),
-    meta: response.data.meta
-  };
-}
-
-export async function uploadPlantPhoto(
-  plantId: number,
-  payload: UploadPhotoPayload
-): Promise<UploadPhotoResponse> {
   const formData = new FormData();
 
   formData.append("file", payload.file);
@@ -59,9 +68,37 @@ export async function uploadPlantPhoto(
   appendOptional(formData, "notes", payload.notes);
   appendOptional(formData, "taken_at", payload.taken_at);
 
+  return formData;
+}
+
+export async function listPlantPhotos(
+  plantId: number,
+  params: PhotoListParams = {},
+): Promise<PaginatedPhotosResult> {
+  assertPositiveInteger(plantId, "Planta");
+
+  const response = await apiClient.get<ApiEnvelope<PlantPhoto[]>>(
+    `/plants/${plantId}/photos`,
+    {
+      params: cleanParams(params),
+    },
+  );
+
+  return {
+    items: unwrapEnvelope(response.data),
+    meta: response.data.meta,
+  };
+}
+
+export async function uploadPlantPhoto(
+  plantId: number,
+  payload: UploadPhotoPayload,
+): Promise<UploadPhotoResponse> {
+  assertPositiveInteger(plantId, "Planta");
+
   const response = await apiClient.post<ApiEnvelope<UploadPhotoResponse>>(
     `/plants/${plantId}/photos`,
-    formData
+    buildPhotoFormData(payload),
   );
 
   return unwrapEnvelope(response.data);
@@ -69,20 +106,26 @@ export async function uploadPlantPhoto(
 
 export async function deletePlantPhoto(
   plantId: number,
-  photoId: number
+  photoId: number,
 ): Promise<void> {
+  assertPositiveInteger(plantId, "Planta");
+  assertPositiveInteger(photoId, "Foto");
+
   await apiClient.delete(`/plants/${plantId}/photos/${photoId}`);
 }
 
 export async function downloadPlantPhoto(
   plantId: number,
-  photoId: number
+  photoId: number,
 ): Promise<Blob> {
+  assertPositiveInteger(plantId, "Planta");
+  assertPositiveInteger(photoId, "Foto");
+
   const response = await apiClient.get<Blob>(
     `/plants/${plantId}/photos/${photoId}/download`,
     {
-      responseType: "blob"
-    }
+      responseType: "blob",
+    },
   );
 
   return response.data;

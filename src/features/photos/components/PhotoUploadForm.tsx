@@ -1,9 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Upload } from "lucide-react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 
 import {
     defaultPhotoUploadFormValues,
+    PHOTO_ACCEPT_ATTRIBUTE,
+    PHOTO_MAX_FILE_SIZE_LABEL,
     photoUploadSchema,
     type PhotoUploadFormValues
 } from "@/features/photos/schemas/photoSchemas";
@@ -30,16 +33,23 @@ export function PhotoUploadForm({
     apiErrorMessage,
     onSubmit
 }: PhotoUploadFormProps) {
+    const [fileInputKey, setFileInputKey] = useState(0);
     const form = useForm<PhotoUploadFormValues>({
         resolver: zodResolver(photoUploadSchema),
         defaultValues: defaultPhotoUploadFormValues
     });
-
+    const fileField = form.register("file");
     const disabled = isSubmitting || form.formState.isSubmitting;
+    const fileError = form.formState.errors.file?.message;
+    const photoTypeError = form.formState.errors.photo_type?.message;
+    const takenAtError = form.formState.errors.taken_at?.message;
+    const captionError = form.formState.errors.caption?.message;
+    const notesError = form.formState.errors.notes?.message;
 
     const handleSubmit = form.handleSubmit(async (values) => {
         await onSubmit(values);
         form.reset(defaultPhotoUploadFormValues);
+        setFileInputKey((current) => current + 1);
     });
 
     return (
@@ -47,15 +57,17 @@ export function PhotoUploadForm({
             <CardHeader>
                 <CardTitle>Enviar foto</CardTitle>
                 <CardDescription>
-                    O upload usa multipart/form-data com arquivo, tipo, legenda, notas e
-                    data opcional.
+                    Envie uma imagem JPG, PNG, WEBP ou GIF de até {PHOTO_MAX_FILE_SIZE_LABEL}.
                 </CardDescription>
             </CardHeader>
 
             <CardContent>
                 <form className="grid gap-5 md:grid-cols-2" onSubmit={handleSubmit} noValidate>
                     {apiErrorMessage ? (
-                        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive md:col-span-2">
+                        <div
+                            className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive md:col-span-2"
+                            role="alert"
+                        >
                             {apiErrorMessage}
                         </div>
                     ) : null}
@@ -63,13 +75,28 @@ export function PhotoUploadForm({
                     <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="photo-file">Arquivo *</Label>
                         <Input
+                            key={fileInputKey}
                             id="photo-file"
                             type="file"
-                            accept="image/*"
+                            accept={PHOTO_ACCEPT_ATTRIBUTE}
                             disabled={disabled}
-                            {...form.register("file")}
+                            aria-invalid={Boolean(fileError)}
+                            aria-describedby="photo-file-help"
+                            name={fileField.name}
+                            onBlur={fileField.onBlur}
+                            onChange={(event) => {
+                                void fileField.onChange(event);
+
+                                if (event.currentTarget.files?.length) {
+                                    form.clearErrors("file");
+                                }
+                            }}
+                            ref={fileField.ref}
                         />
-                        <FormErrorMessage message={form.formState.errors.file?.message} />
+                        <p id="photo-file-help" className="text-xs text-muted-foreground">
+                            Evite fotos pesadas ou sem relação com a planta.
+                        </p>
+                        <FormErrorMessage message={fileError} />
                     </div>
 
                     <div className="space-y-2">
@@ -77,10 +104,12 @@ export function PhotoUploadForm({
                         <Input
                             id="photo_type"
                             placeholder="routine"
+                            autoComplete="off"
                             disabled={disabled}
+                            aria-invalid={Boolean(photoTypeError)}
                             {...form.register("photo_type")}
                         />
-                        <FormErrorMessage message={form.formState.errors.photo_type?.message} />
+                        <FormErrorMessage message={photoTypeError} />
                     </div>
 
                     <div className="space-y-2">
@@ -89,9 +118,10 @@ export function PhotoUploadForm({
                             id="taken_at"
                             type="datetime-local"
                             disabled={disabled}
+                            aria-invalid={Boolean(takenAtError)}
                             {...form.register("taken_at")}
                         />
-                        <FormErrorMessage message={form.formState.errors.taken_at?.message} />
+                        <FormErrorMessage message={takenAtError} />
                     </div>
 
                     <div className="space-y-2 md:col-span-2">
@@ -99,10 +129,12 @@ export function PhotoUploadForm({
                         <Input
                             id="caption"
                             placeholder="Registro visual"
+                            autoComplete="off"
                             disabled={disabled}
+                            aria-invalid={Boolean(captionError)}
                             {...form.register("caption")}
                         />
-                        <FormErrorMessage message={form.formState.errors.caption?.message} />
+                        <FormErrorMessage message={captionError} />
                     </div>
 
                     <div className="space-y-2 md:col-span-2">
@@ -112,10 +144,11 @@ export function PhotoUploadForm({
                             rows={4}
                             placeholder="Upload via web, folha nova, praga visível..."
                             disabled={disabled}
+                            aria-invalid={Boolean(notesError)}
                             className="flex w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background transition placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                             {...form.register("notes")}
                         />
-                        <FormErrorMessage message={form.formState.errors.notes?.message} />
+                        <FormErrorMessage message={notesError} />
                     </div>
 
                     <div className="flex justify-end md:col-span-2">
