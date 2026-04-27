@@ -1,3 +1,5 @@
+import type { ComponentType } from "react";
+
 import {
     Bell,
     Bot,
@@ -15,6 +17,8 @@ import {
 } from "lucide-react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 
+import { useAuthUser } from "@/core/auth/authStore";
+import { useLogout } from "@/features/auth/hooks/useAuthActions";
 import { Button } from "@/shared/components/ui/button";
 import { Separator } from "@/shared/components/ui/separator";
 import { cn } from "@/shared/utils/cn";
@@ -22,7 +26,7 @@ import { cn } from "@/shared/utils/cn";
 type NavItem = {
     label: string;
     path: string;
-    icon: React.ComponentType<{ className?: string }>;
+    icon: ComponentType<{ className?: string }>;
 };
 
 const mainNavItems: NavItem[] = [
@@ -117,6 +121,10 @@ function SidebarLink({ item }: { item: NavItem }) {
 }
 
 export function RootLayout() {
+    const user = useAuthUser();
+    const { logout, isLoggingOut } = useLogout();
+    const canSeeAdmin = user?.is_admin === true;
+
     return (
         <div className="min-h-screen bg-background">
             <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 border-r bg-card/85 backdrop-blur lg:flex lg:flex-col">
@@ -152,26 +160,41 @@ export function RootLayout() {
                         </div>
                     </div>
 
-                    <Separator />
+                    {canSeeAdmin ? (
+                        <>
+                            <Separator />
 
-                    <div>
-                        <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            Admin
-                        </p>
-                        <div className="space-y-1">
-                            {adminItems.map((item) => (
-                                <SidebarLink key={item.path} item={item} />
-                            ))}
-                        </div>
-                    </div>
+                            <div>
+                                <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                    Admin
+                                </p>
+                                <div className="space-y-1">
+                                    {adminItems.map((item) => (
+                                        <SidebarLink key={item.path} item={item} />
+                                    ))}
+                                </div>
+                            </div>
+                        </>
+                    ) : null}
                 </nav>
 
-                <div className="border-t p-4">
-                    <Button asChild variant="outline" className="w-full justify-start">
-                        <Link to="/login">
-                            <LogOut className="mr-2 h-4 w-4" />
-                            Sair
-                        </Link>
+                <div className="space-y-4 border-t p-4">
+                    {user ? (
+                        <div className="rounded-2xl bg-secondary p-3">
+                            <p className="truncate text-sm font-medium">{user.name}</p>
+                            <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+                        </div>
+                    ) : null}
+
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full justify-start"
+                        disabled={isLoggingOut}
+                        onClick={() => logout()}
+                    >
+                        <LogOut className="mr-2 h-4 w-4" />
+                        {isLoggingOut ? "Saindo" : "Sair"}
                     </Button>
                 </div>
             </aside>
@@ -189,22 +212,43 @@ export function RootLayout() {
                         <div className="hidden lg:block">
                             <p className="text-sm font-medium">MVP Web</p>
                             <p className="text-xs text-muted-foreground">
-                                Setup inicial pronto para conectar na API.
+                                Autenticação conectada à API.
                             </p>
                         </div>
 
                         <div className="flex items-center gap-2">
+                            {user ? (
+                                <div className="hidden text-right sm:block">
+                                    <p className="text-sm font-medium">{user.name}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {user.is_admin ? "Administrador" : "Usuário"}
+                                    </p>
+                                </div>
+                            ) : null}
+
                             <Button asChild variant="ghost" size="sm">
                                 <Link to="/app/notifications">
                                     <Bell className="mr-2 h-4 w-4" />
                                     Notificações
                                 </Link>
                             </Button>
+
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                disabled={isLoggingOut}
+                                className="lg:hidden"
+                                onClick={() => logout()}
+                            >
+                                <LogOut className="mr-2 h-4 w-4" />
+                                Sair
+                            </Button>
                         </div>
                     </div>
 
                     <nav className="flex gap-2 overflow-x-auto border-t px-4 py-2 lg:hidden">
-                        {mainNavItems.map((item) => (
+                        {[...mainNavItems, ...(canSeeAdmin ? adminItems : [])].map((item) => (
                             <NavLink
                                 key={item.path}
                                 to={item.path}
