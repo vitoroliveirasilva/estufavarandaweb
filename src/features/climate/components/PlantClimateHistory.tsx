@@ -1,6 +1,7 @@
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CloudRain, CloudSun, Droplets, Thermometer, Wind } from "lucide-react";
+import { useMemo } from "react";
 
 import type { ClimateSnapshot } from "@/features/climate/types/climateTypes";
 import {
@@ -15,11 +16,28 @@ type PlantClimateHistoryProps = {
     snapshots: ClimateSnapshot[];
 };
 
-function formatDateTime(value: string): string {
-    const date = new Date(value);
+const decimalFormatter = new Intl.NumberFormat("pt-BR", {
+    maximumFractionDigits: 1
+});
 
-    if (Number.isNaN(date.getTime())) {
-        return value;
+const integerFormatter = new Intl.NumberFormat("pt-BR", {
+    maximumFractionDigits: 0
+});
+
+function parseDateTime(value: string): Date | null {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function getSnapshotTime(value: string): number {
+    return parseDateTime(value)?.getTime() ?? 0;
+}
+
+function formatDateTime(value: string): string {
+    const date = parseDateTime(value);
+
+    if (!date) {
+        return value || "Data não informada";
     }
 
     return format(date, "dd/MM/yyyy HH:mm", {
@@ -27,15 +45,34 @@ function formatDateTime(value: string): string {
     });
 }
 
-function formatNumber(value: number | null, suffix: string): string {
+function formatClimateNumber(
+    value: number | null,
+    suffix = "",
+    maximumFractionDigits = 1
+): string {
     if (typeof value !== "number" || !Number.isFinite(value)) {
         return "Não informado";
     }
 
-    return `${value}${suffix}`;
+    const formatter = maximumFractionDigits === 0 ? integerFormatter : decimalFormatter;
+    return `${formatter.format(value)}${suffix}`;
+}
+
+function getCityName(cityName: string | null): string {
+    const trimmed = cityName?.trim();
+    return trimmed ? trimmed : "Cidade não informada";
 }
 
 export function PlantClimateHistory({ snapshots }: PlantClimateHistoryProps) {
+    const orderedSnapshots = useMemo(
+        () =>
+            [...snapshots].sort(
+                (current, next) =>
+                    getSnapshotTime(next.recorded_at) - getSnapshotTime(current.recorded_at)
+            ),
+        [snapshots]
+    );
+
     return (
         <Card>
             <CardHeader>
@@ -47,9 +84,9 @@ export function PlantClimateHistory({ snapshots }: PlantClimateHistoryProps) {
 
             <CardContent>
                 <div className="space-y-3">
-                    {snapshots.map((snapshot) => (
+                    {orderedSnapshots.map((snapshot) => (
                         <article
-                            key={snapshot.id}
+                            key={`${snapshot.id}-${snapshot.recorded_at}`}
                             className="rounded-2xl border bg-background p-4"
                         >
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -60,10 +97,12 @@ export function PlantClimateHistory({ snapshots }: PlantClimateHistoryProps) {
 
                                     <div>
                                         <h3 className="font-medium">
-                                            {formatDateTime(snapshot.recorded_at)}
+                                            <time dateTime={snapshot.recorded_at || undefined}>
+                                                {formatDateTime(snapshot.recorded_at)}
+                                            </time>
                                         </h3>
                                         <p className="mt-1 text-sm text-muted-foreground">
-                                            {snapshot.city_name || "Cidade não informada"}
+                                            {getCityName(snapshot.city_name)}
                                         </p>
                                     </div>
                                 </div>
@@ -74,7 +113,7 @@ export function PlantClimateHistory({ snapshots }: PlantClimateHistoryProps) {
                                     <Thermometer className="mb-2 h-4 w-4 text-primary" />
                                     <p className="text-xs text-muted-foreground">Temperatura</p>
                                     <p className="mt-1 text-sm font-semibold">
-                                        {formatNumber(snapshot.temperature_c, "°C")}
+                                        {formatClimateNumber(snapshot.temperature_c, "°C")}
                                     </p>
                                 </div>
 
@@ -82,7 +121,7 @@ export function PlantClimateHistory({ snapshots }: PlantClimateHistoryProps) {
                                     <Wind className="mb-2 h-4 w-4 text-primary" />
                                     <p className="text-xs text-muted-foreground">Sensação</p>
                                     <p className="mt-1 text-sm font-semibold">
-                                        {formatNumber(snapshot.feels_like_c, "°C")}
+                                        {formatClimateNumber(snapshot.feels_like_c, "°C")}
                                     </p>
                                 </div>
 
@@ -90,7 +129,7 @@ export function PlantClimateHistory({ snapshots }: PlantClimateHistoryProps) {
                                     <Droplets className="mb-2 h-4 w-4 text-primary" />
                                     <p className="text-xs text-muted-foreground">Umidade</p>
                                     <p className="mt-1 text-sm font-semibold">
-                                        {formatNumber(snapshot.humidity_percent, "%")}
+                                        {formatClimateNumber(snapshot.humidity_percent, "%", 0)}
                                     </p>
                                 </div>
 
@@ -98,7 +137,7 @@ export function PlantClimateHistory({ snapshots }: PlantClimateHistoryProps) {
                                     <CloudRain className="mb-2 h-4 w-4 text-primary" />
                                     <p className="text-xs text-muted-foreground">Chuva</p>
                                     <p className="mt-1 text-sm font-semibold">
-                                        {formatNumber(snapshot.rain_mm, " mm")}
+                                        {formatClimateNumber(snapshot.rain_mm, " mm")}
                                     </p>
                                 </div>
 
@@ -106,7 +145,7 @@ export function PlantClimateHistory({ snapshots }: PlantClimateHistoryProps) {
                                     <CloudSun className="mb-2 h-4 w-4 text-primary" />
                                     <p className="text-xs text-muted-foreground">UV</p>
                                     <p className="mt-1 text-sm font-semibold">
-                                        {formatNumber(snapshot.uv_index, "")}
+                                        {formatClimateNumber(snapshot.uv_index)}
                                     </p>
                                 </div>
                             </div>

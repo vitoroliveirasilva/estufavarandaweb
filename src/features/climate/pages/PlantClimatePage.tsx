@@ -1,4 +1,5 @@
 import { ArrowLeft, CloudSun } from "lucide-react";
+import { useMemo } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
 import { getAppErrorMessage } from "@/core/api/apiError";
@@ -17,6 +18,11 @@ import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Label } from "@/shared/components/ui/label";
 
+const DEFAULT_LIMIT = 10;
+const LIMIT_OPTIONS = [5, 10, 20, 50] as const;
+
+type ClimateLimit = (typeof LIMIT_OPTIONS)[number];
+
 function parsePositiveInt(value: string | null | undefined, fallback: number): number {
     if (!value) {
         return fallback;
@@ -26,18 +32,29 @@ function parsePositiveInt(value: string | null | undefined, fallback: number): n
     return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+function normalizeLimit(value: string | number | null | undefined): ClimateLimit {
+    const parsed = typeof value === "number" ? value : parsePositiveInt(value, DEFAULT_LIMIT);
+
+    return LIMIT_OPTIONS.includes(parsed as ClimateLimit)
+        ? (parsed as ClimateLimit)
+        : DEFAULT_LIMIT;
+}
+
 export function PlantClimatePage() {
     const { plantId } = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
 
     const parsedPlantId = parsePositiveInt(plantId, 0);
-    const limit = parsePositiveInt(searchParams.get("limit"), 10);
+    const limit = normalizeLimit(searchParams.get("limit"));
+    const climateParams = useMemo(() => ({ limit }), [limit]);
 
     const plantQuery = usePlantDetail(parsedPlantId, parsedPlantId > 0);
-    const plantClimateQuery = usePlantClimate(parsedPlantId, {
-        limit
-    });
-    const summaryQuery = useClimateSummary();
+    const plantClimateQuery = usePlantClimate(
+        parsedPlantId,
+        climateParams,
+        parsedPlantId > 0
+    );
+    const summaryQuery = useClimateSummary(parsedPlantId > 0);
 
     if (!parsedPlantId) {
         return (
@@ -48,19 +65,24 @@ export function PlantClimatePage() {
         );
     }
 
-    const hasSnapshots = Boolean(plantClimateQuery.data?.length);
+    const snapshots = plantClimateQuery.data ?? [];
+    const hasSnapshots = snapshots.length > 0;
+    const plantName = plantQuery.data?.name;
+    const isInitialLoading = plantClimateQuery.isPending;
 
-    function updateLimit(nextLimit: number) {
+    function updateLimit(nextLimit: string) {
+        const normalizedLimit = normalizeLimit(nextLimit);
         const next = new URLSearchParams(searchParams);
-        next.set("limit", String(nextLimit));
-        setSearchParams(next);
+
+        next.set("limit", String(normalizedLimit));
+        setSearchParams(next, { replace: true });
     }
 
     return (
         <>
             <PageHeader
                 eyebrow="Clima"
-                title={`Clima${plantQuery.data?.name ? ` · ${plantQuery.data.name}` : ""}`}
+                title={`Clima${plantName ? ` · ${plantName}` : ""}`}
                 description="Histórico climático da planta e resumo climático geral da estufa."
                 actions={
                     <Button asChild variant="outline">
@@ -72,13 +94,22 @@ export function PlantClimatePage() {
                 }
             />
 
+            {plantQuery.isError ? (
+                <div className="mb-5">
+                    <ErrorState
+                        title="Não foi possível carregar os dados da planta"
+                        description={getAppErrorMessage(plantQuery.error)}
+                        actionLabel="Tentar novamente"
+                        onAction={() => void plantQuery.refetch()}
+                    />
+                </div>
+            ) : null}
+
             <div className="space-y-5">
                 <ClimateGenericSummary
                     summary={summaryQuery.data}
-                    isLoading={summaryQuery.isLoading}
-                    errorMessage={
-                        summaryQuery.error ? getAppErrorMessage(summaryQuery.error) : null
-                    }
+                    isLoading={summaryQuery.isPending}
+                    errorMessage={summaryQuery.error ? getAppErrorMessage(summaryQuery.error) : null}
                     onRetry={() => void summaryQuery.refetch()}
                 />
 
@@ -90,12 +121,13 @@ export function PlantClimatePage() {
                                 id="climate-limit"
                                 value={limit}
                                 className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:w-48"
-                                onChange={(event) => updateLimit(Number(event.target.value))}
+                                onChange={(event) => updateLimit(event.target.value)}
                             >
-                                <option value={5}>5 registros</option>
-                                <option value={10}>10 registros</option>
-                                <option value={20}>20 registros</option>
-                                <option value={50}>50 registros</option>
+                                {LIMIT_OPTIONS.map((option) => (
+                                    <option key={option} value={option}>
+                                        {option} registros
+                                    </option>
+                                ))}
                             </select>
                         </div>
 
@@ -105,12 +137,14 @@ export function PlantClimatePage() {
                             disabled={plantClimateQuery.isFetching}
                             onClick={() => void plantClimateQuery.refetch()}
                         >
-                            Atualizar
+                            {plantClimateQuery.isFetching && !isInitialLoading
+                                ? "Atualizando..."
+                                : "Atualizar"}
                         </Button>
                     </CardContent>
                 </Card>
 
-                {plantClimateQuery.isLoading ? (
+                {isInitialLoading ? (
                     <LoadingState
                         title="Carregando clima"
                         description="Buscando snapshots climáticos da planta."
@@ -126,9 +160,7 @@ export function PlantClimatePage() {
                     />
                 ) : null}
 
-                {!plantClimateQuery.isLoading &&
-                    !plantClimateQuery.isError &&
-                    !hasSnapshots ? (
+                {!isInitialLoading && !plantClimateQuery.isError && !hasSnapshots ? (
                     <EmptyState
                         icon={<CloudSun className="h-6 w-6" />}
                         title="Nenhum registro climático"
@@ -136,9 +168,7 @@ export function PlantClimatePage() {
                     />
                 ) : null}
 
-                {hasSnapshots ? (
-                    <PlantClimateHistory snapshots={plantClimateQuery.data ?? []} />
-                ) : null}
+                {hasSnapshots ? <PlantClimateHistory snapshots={snapshots} /> : null}
             </div>
         </>
     );

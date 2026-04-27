@@ -19,10 +19,45 @@ type ClimateGenericSummaryProps = {
     onRetry?: () => void;
 };
 
+const MAX_DISPLAY_LENGTH = 500;
+
+const numberFormatter = new Intl.NumberFormat("pt-BR", {
+    maximumFractionDigits: 2
+});
+
+const dateTimeFormatter = new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short"
+});
+
+function truncate(value: string): string {
+    const normalized = value.replace(/\s+/g, " ").trim();
+
+    if (normalized.length <= MAX_DISPLAY_LENGTH) {
+        return normalized;
+    }
+
+    return `${normalized.slice(0, MAX_DISPLAY_LENGTH - 1).trim()}…`;
+}
+
+function isIsoDateLike(value: string): boolean {
+    return /^\d{4}-\d{2}-\d{2}(?:[T\s].*)?$/.test(value);
+}
+
 function formatKey(key: string): string {
     return key
-        .replaceAll("_", " ")
+        .replace(/[_-]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
         .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function formatObject(value: object): string {
+    try {
+        return truncate(JSON.stringify(value));
+    } catch {
+        return "Objeto não serializável";
+    }
 }
 
 function formatValue(value: unknown): string {
@@ -35,17 +70,19 @@ function formatValue(value: unknown): string {
     }
 
     if (typeof value === "number") {
-        return Number.isFinite(value) ? String(value) : "Não informado";
+        return Number.isFinite(value) ? numberFormatter.format(value) : "Não informado";
     }
 
     if (typeof value === "string") {
-        const date = new Date(value);
+        if (isIsoDateLike(value)) {
+            const date = new Date(value);
 
-        if (!Number.isNaN(date.getTime()) && value.includes("T")) {
-            return date.toLocaleString("pt-BR");
+            if (!Number.isNaN(date.getTime())) {
+                return dateTimeFormatter.format(date);
+            }
         }
 
-        return value;
+        return truncate(value);
     }
 
     if (Array.isArray(value)) {
@@ -53,10 +90,10 @@ function formatValue(value: unknown): string {
     }
 
     if (typeof value === "object") {
-        return JSON.stringify(value);
+        return formatObject(value);
     }
 
-    return String(value);
+    return truncate(String(value));
 }
 
 export function ClimateGenericSummary({
@@ -86,7 +123,7 @@ export function ClimateGenericSummary({
     }
 
     const entries = Object.entries(summary ?? {}).filter(
-        ([, value]) => value !== undefined
+        ([, value]) => value !== undefined && typeof value !== "function"
     );
 
     if (entries.length === 0) {
@@ -104,7 +141,7 @@ export function ClimateGenericSummary({
             <CardHeader>
                 <CardTitle>Resumo climático</CardTitle>
                 <CardDescription>
-                    Renderização tolerante, pois o objeto de resumo pode evoluir na API.
+                    Dados consolidados retornados pela API para a estufa.
                 </CardDescription>
             </CardHeader>
 
