@@ -11,12 +11,16 @@ import type {
   WateringLogsParams
 } from "@/features/watering/types/wateringTypes";
 
+const DEFAULT_PAGE = 1;
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100;
+
 export const wateringQueryKeys = {
   root: ["watering"] as const,
   lists: (plantId: number) =>
     [...wateringQueryKeys.root, "logs", plantId] as const,
   list: (plantId: number, params: WateringLogsParams) =>
-    [...wateringQueryKeys.lists(plantId), params] as const,
+    [...wateringQueryKeys.lists(plantId), normalizeWateringLogsParams(params)] as const,
   summary: (plantId: number) =>
     [...wateringQueryKeys.root, "summary", plantId] as const
 };
@@ -34,7 +38,34 @@ function parseQuantity(value: string | undefined): number | undefined {
   }
 
   const parsed = Number(normalized);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function normalizePositiveInteger(
+  value: unknown,
+  fallback: number,
+  max?: number
+): number {
+  const parsed = typeof value === "number" ? value : Number(value);
+
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    return fallback;
+  }
+
+  return typeof max === "number" ? Math.min(parsed, max) : parsed;
+}
+
+export function normalizeWateringLogsParams(
+  params: WateringLogsParams = {}
+): Required<WateringLogsParams> {
+  return {
+    page: normalizePositiveInteger(params.page, DEFAULT_PAGE),
+    page_size: normalizePositiveInteger(
+      params.page_size,
+      DEFAULT_PAGE_SIZE,
+      MAX_PAGE_SIZE
+    )
+  };
 }
 
 function toIsoWithLocalOffset(value: string): string {
@@ -83,10 +114,12 @@ export function toDatetimeLocalValue(value?: string | null): string {
 }
 
 export function useWateringLogs(plantId: number, params: WateringLogsParams) {
+  const normalizedParams = normalizeWateringLogsParams(params);
+
   return useQuery({
-    queryKey: wateringQueryKeys.list(plantId, params),
-    queryFn: () => listWateringLogs(plantId, params),
-    enabled: plantId > 0
+    queryKey: wateringQueryKeys.list(plantId, normalizedParams),
+    queryFn: () => listWateringLogs(plantId, normalizedParams),
+    enabled: Number.isInteger(plantId) && plantId > 0
   });
 }
 
@@ -94,7 +127,7 @@ export function useWateringSummary(plantId: number) {
   return useQuery({
     queryKey: wateringQueryKeys.summary(plantId),
     queryFn: () => getWateringSummary(plantId),
-    enabled: plantId > 0
+    enabled: Number.isInteger(plantId) && plantId > 0
   });
 }
 
@@ -105,6 +138,10 @@ export function useCreateWateringLogMutation(plantId: number) {
     mutationFn: (payload: CreateWateringLogPayload) =>
       createWateringLog(plantId, payload),
     onSuccess: async () => {
+      if (!Number.isInteger(plantId) || plantId <= 0) {
+        return;
+      }
+
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: wateringQueryKeys.lists(plantId)

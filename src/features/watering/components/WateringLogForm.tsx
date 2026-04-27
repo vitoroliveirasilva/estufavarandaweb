@@ -3,12 +3,12 @@ import { Loader2, Plus } from "lucide-react";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 
+import { toDatetimeLocalValue } from "@/features/watering/hooks/useWatering";
 import {
     defaultWateringLogFormValues,
     wateringLogSchema,
     type WateringLogFormValues
 } from "@/features/watering/schemas/wateringSchemas";
-import { toDatetimeLocalValue } from "@/features/watering/hooks/useWatering";
 import { FormErrorMessage } from "@/shared/components/FormErrorMessage";
 import { Button } from "@/shared/components/ui/button";
 import {
@@ -37,14 +37,19 @@ export function WateringLogForm({
         defaultValues: {
             ...defaultWateringLogFormValues,
             watered_at: toDatetimeLocalValue()
-        }
+        },
+        mode: "onBlur"
     });
 
     const disabled = isSubmitting || form.formState.isSubmitting;
 
     useEffect(() => {
         if (!form.getValues("watered_at")) {
-            form.setValue("watered_at", toDatetimeLocalValue());
+            form.setValue("watered_at", toDatetimeLocalValue(), {
+                shouldDirty: false,
+                shouldTouch: false,
+                shouldValidate: false
+            });
         }
     }, [form]);
 
@@ -70,7 +75,10 @@ export function WateringLogForm({
             <CardContent>
                 <form className="grid gap-5 md:grid-cols-2" onSubmit={handleSubmit} noValidate>
                     {apiErrorMessage ? (
-                        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive md:col-span-2">
+                        <div
+                            className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive md:col-span-2"
+                            role="alert"
+                        >
                             {apiErrorMessage}
                         </div>
                     ) : null}
@@ -81,6 +89,7 @@ export function WateringLogForm({
                             id="watered_at"
                             type="datetime-local"
                             disabled={disabled}
+                            aria-invalid={Boolean(form.formState.errors.watered_at)}
                             {...form.register("watered_at")}
                         />
                         <FormErrorMessage message={form.formState.errors.watered_at?.message} />
@@ -93,6 +102,8 @@ export function WateringLogForm({
                             inputMode="numeric"
                             placeholder="300"
                             disabled={disabled}
+                            aria-invalid={Boolean(form.formState.errors.quantity_ml)}
+                            autoComplete="off"
                             {...form.register("quantity_ml")}
                         />
                         <FormErrorMessage message={form.formState.errors.quantity_ml?.message} />
@@ -103,8 +114,10 @@ export function WateringLogForm({
                         <textarea
                             id="notes"
                             rows={4}
+                            maxLength={500}
                             placeholder="Solo seco, rega leve, vaso drenou bem..."
                             disabled={disabled}
+                            aria-invalid={Boolean(form.formState.errors.notes)}
                             className="flex w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background transition placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                             {...form.register("notes")}
                         />

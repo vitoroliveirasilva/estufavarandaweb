@@ -3,6 +3,7 @@ import { ptBR } from "date-fns/locale";
 import { Droplets } from "lucide-react";
 
 import type { WateringLog } from "@/features/watering/types/wateringTypes";
+import { EmptyState } from "@/shared/components/EmptyState";
 import {
     Card,
     CardContent,
@@ -19,7 +20,7 @@ function formatDateTime(value: string): string {
     const date = new Date(value);
 
     if (Number.isNaN(date.getTime())) {
-        return value;
+        return value || "Data não informada";
     }
 
     return format(date, "dd/MM/yyyy HH:mm", {
@@ -28,11 +29,11 @@ function formatDateTime(value: string): string {
 }
 
 function formatQuantity(value: number | null): string {
-    if (typeof value !== "number" || !Number.isFinite(value)) {
+    if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
         return "Não informada";
     }
 
-    return `${value} ml`;
+    return `${Math.round(value).toLocaleString("pt-BR")} ml`;
 }
 
 export function WateringLogsList({ logs }: WateringLogsListProps) {
@@ -46,31 +47,41 @@ export function WateringLogsList({ logs }: WateringLogsListProps) {
             </CardHeader>
 
             <CardContent>
-                <div className="space-y-3">
-                    {logs.map((log) => (
-                        <article
-                            key={log.id}
-                            className="flex gap-4 rounded-2xl border bg-background p-4"
-                        >
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-secondary text-primary">
-                                <Droplets className="h-5 w-5" />
-                            </div>
-
-                            <div className="min-w-0 flex-1">
-                                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                                    <h3 className="font-medium">{formatDateTime(log.watered_at)}</h3>
-                                    <span className="text-sm font-semibold text-primary">
-                                        {formatQuantity(log.quantity_ml)}
-                                    </span>
+                {logs.length === 0 ? (
+                    <EmptyState
+                        icon={<Droplets className="h-6 w-6" />}
+                        title="Nenhuma rega registrada"
+                        description="Registre a primeira rega para criar o histórico desta planta."
+                    />
+                ) : (
+                    <div className="space-y-3">
+                        {logs.map((log) => (
+                            <article
+                                key={log.id}
+                                className="flex gap-4 rounded-2xl border bg-background p-4"
+                            >
+                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-secondary text-primary">
+                                    <Droplets className="h-5 w-5" aria-hidden="true" />
                                 </div>
 
-                                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
-                                    {log.notes?.trim() || "Sem observações."}
-                                </p>
-                            </div>
-                        </article>
-                    ))}
-                </div>
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                                        <h3 className="font-medium">
+                                            {formatDateTime(log.watered_at)}
+                                        </h3>
+                                        <span className="text-sm font-semibold text-primary">
+                                            {formatQuantity(log.quantity_ml)}
+                                        </span>
+                                    </div>
+
+                                    <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-muted-foreground">
+                                        {log.notes?.trim() || "Sem observações."}
+                                    </p>
+                                </div>
+                            </article>
+                        ))}
+                    </div>
+                )}
             </CardContent>
         </Card>
     );

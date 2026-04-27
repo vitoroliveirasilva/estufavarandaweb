@@ -19,10 +19,23 @@ type WateringSummaryCardProps = {
     onRetry?: () => void;
 };
 
+const dateFormatter = new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short"
+});
+
 function formatKey(key: string): string {
     return key
         .replaceAll("_", " ")
         .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function safeJsonStringify(value: unknown): string {
+    try {
+        return JSON.stringify(value);
+    } catch {
+        return "Objeto não exibível";
+    }
 }
 
 function formatValue(value: unknown): string {
@@ -35,17 +48,17 @@ function formatValue(value: unknown): string {
     }
 
     if (typeof value === "number") {
-        return Number.isFinite(value) ? String(value) : "Não informado";
+        return Number.isFinite(value) ? value.toLocaleString("pt-BR") : "Não informado";
     }
 
     if (typeof value === "string") {
         const date = new Date(value);
 
         if (!Number.isNaN(date.getTime()) && value.includes("T")) {
-            return date.toLocaleString("pt-BR");
+            return dateFormatter.format(date);
         }
 
-        return value;
+        return value.trim() || "Não informado";
     }
 
     if (Array.isArray(value)) {
@@ -53,7 +66,7 @@ function formatValue(value: unknown): string {
     }
 
     if (typeof value === "object") {
-        return JSON.stringify(value);
+        return safeJsonStringify(value);
     }
 
     return String(value);

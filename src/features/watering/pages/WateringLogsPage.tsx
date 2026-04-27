@@ -1,18 +1,20 @@
+import { useEffect } from "react";
 import { ArrowLeft, Droplets } from "lucide-react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
 import { getAppErrorMessage } from "@/core/api/apiError";
 import { usePlantDetail } from "@/features/plants/hooks/usePlants";
-import { normalizeWateringLogFormValues } from "@/features/watering/hooks/useWatering";
+import { WateringLogForm } from "@/features/watering/components/WateringLogForm";
+import { WateringLogsList } from "@/features/watering/components/WateringLogsList";
+import { WateringSummaryCard } from "@/features/watering/components/WateringSummaryCard";
 import {
+    normalizeWateringLogFormValues,
+    normalizeWateringLogsParams,
     useCreateWateringLogMutation,
     useWateringLogs,
     useWateringSummary
 } from "@/features/watering/hooks/useWatering";
 import type { WateringLogFormValues } from "@/features/watering/schemas/wateringSchemas";
-import { WateringLogForm } from "@/features/watering/components/WateringLogForm";
-import { WateringLogsList } from "@/features/watering/components/WateringLogsList";
-import { WateringSummaryCard } from "@/features/watering/components/WateringSummaryCard";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { ErrorState } from "@/shared/components/ErrorState";
 import { LoadingState } from "@/shared/components/LoadingState";
@@ -33,8 +35,10 @@ export function WateringLogsPage() {
     const [searchParams, setSearchParams] = useSearchParams();
 
     const parsedPlantId = parsePositiveInt(plantId, 0);
-    const page = parsePositiveInt(searchParams.get("page"), 1);
-    const pageSize = parsePositiveInt(searchParams.get("page_size"), 20);
+    const { page, page_size: pageSize } = normalizeWateringLogsParams({
+        page: parsePositiveInt(searchParams.get("page"), 1),
+        page_size: parsePositiveInt(searchParams.get("page_size"), 20)
+    });
 
     const plantQuery = usePlantDetail(parsedPlantId, parsedPlantId > 0);
     const logsQuery = useWateringLogs(parsedPlantId, {
@@ -43,6 +47,24 @@ export function WateringLogsPage() {
     });
     const summaryQuery = useWateringSummary(parsedPlantId);
     const createMutation = useCreateWateringLogMutation(parsedPlantId);
+
+    const total = logsQuery.data?.meta?.total ?? logsQuery.data?.items.length ?? 0;
+    const totalPages = Math.max(
+        1,
+        logsQuery.data?.meta?.total_pages ?? Math.ceil(total / pageSize)
+    );
+    const hasLogs = Boolean(logsQuery.data?.items.length);
+
+    useEffect(() => {
+        if (!logsQuery.data || page <= totalPages) {
+            return;
+        }
+
+        const next = new URLSearchParams(searchParams);
+        next.set("page", String(totalPages));
+        next.set("page_size", String(pageSize));
+        setSearchParams(next, { replace: true });
+    }, [logsQuery.data, page, pageSize, searchParams, setSearchParams, totalPages]);
 
     if (!parsedPlantId) {
         return (
@@ -53,14 +75,10 @@ export function WateringLogsPage() {
         );
     }
 
-    const total = logsQuery.data?.meta?.total ?? logsQuery.data?.items.length ?? 0;
-    const totalPages =
-        logsQuery.data?.meta?.total_pages ?? Math.max(1, Math.ceil(total / pageSize));
-    const hasLogs = Boolean(logsQuery.data?.items.length);
-
     function goToPage(nextPage: number) {
+        const boundedPage = Math.min(Math.max(nextPage, 1), totalPages);
         const next = new URLSearchParams(searchParams);
-        next.set("page", String(nextPage));
+        next.set("page", String(boundedPage));
         next.set("page_size", String(pageSize));
         setSearchParams(next);
     }
@@ -86,6 +104,15 @@ export function WateringLogsPage() {
             />
 
             <div className="space-y-5">
+                {plantQuery.isError ? (
+                    <ErrorState
+                        title="Não foi possível carregar os dados da planta"
+                        description={getAppErrorMessage(plantQuery.error)}
+                        actionLabel="Tentar novamente"
+                        onAction={() => void plantQuery.refetch()}
+                    />
+                ) : null}
+
                 <WateringSummaryCard
                     summary={summaryQuery.data}
                     isLoading={summaryQuery.isLoading}
