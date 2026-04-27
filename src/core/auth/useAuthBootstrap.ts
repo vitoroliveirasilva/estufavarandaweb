@@ -6,7 +6,7 @@ import {
   setAuthenticated,
   setAuthLoading,
   setUnauthenticated,
-  useAuthStore
+  useAuthBootstrapped,
 } from "@/core/auth/authStore";
 import { tokenStorage } from "@/core/auth/tokenStorage";
 
@@ -29,10 +29,23 @@ async function runBootstrap(): Promise<void> {
 
   try {
     const user = await bootstrapSessionFromRefreshToken();
+    const latestState = getAuthState();
+
+    if (latestState.status === "authenticated") {
+      return;
+    }
+
+    if (!tokenStorage.hasRefreshToken()) {
+      setUnauthenticated();
+      return;
+    }
+
     setAuthenticated(user);
   } catch {
-    tokenStorage.clear();
-    setUnauthenticated();
+    if (getAuthState().status !== "authenticated") {
+      tokenStorage.clear();
+      setUnauthenticated();
+    }
   }
 }
 
@@ -47,7 +60,7 @@ export function ensureAuthBootstrapped(): Promise<void> {
 }
 
 export function useAuthBootstrap(): void {
-  const bootstrapped = useAuthStore((state) => state.bootstrapped);
+  const bootstrapped = useAuthBootstrapped();
 
   useEffect(() => {
     if (!bootstrapped) {

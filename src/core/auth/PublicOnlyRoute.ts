@@ -10,6 +10,23 @@ type PublicOnlyRouteProps = {
   children?: ReactNode;
 };
 
+function FullPagePublicLoading() {
+  return (
+    <div
+      aria-busy="true"
+      aria-live="polite"
+      className="leaf-gradient flex min-h-screen items-center justify-center p-4"
+    >
+      <div className="w-full max-w-lg">
+        <LoadingState
+          title="Preparando acesso"
+          description="Verificando se já existe uma sessão ativa."
+        />
+      </div>
+    </div>
+  );
+}
+
 export function PublicOnlyRoute({ children }: PublicOnlyRouteProps) {
   const status = useAuthStore((state) => state.status);
   const bootstrapped = useAuthStore((state) => state.bootstrapped);
@@ -17,16 +34,7 @@ export function PublicOnlyRoute({ children }: PublicOnlyRouteProps) {
   useAuthBootstrap();
 
   if (!bootstrapped || status === "idle" || status === "loading") {
-    return (
-      <div className="leaf-gradient flex min-h-screen items-center justify-center p-4">
-        <div className="w-full max-w-lg">
-          <LoadingState
-            title="Preparando acesso"
-            description="Verificando se já existe uma sessão ativa."
-          />
-        </div>
-      </div>
-    );
+    return <FullPagePublicLoading />;
   }
 
   if (status === "authenticated") {

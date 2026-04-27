@@ -10,6 +10,23 @@ type RequireAuthProps = {
   children?: ReactNode;
 };
 
+function FullPageAuthLoading() {
+  return (
+    <div
+      aria-busy="true"
+      aria-live="polite"
+      className="leaf-gradient flex min-h-screen items-center justify-center p-4"
+    >
+      <div className="w-full max-w-lg">
+        <LoadingState
+          title="Verificando sessão"
+          description="Só um instante enquanto validamos seu acesso."
+        />
+      </div>
+    </div>
+  );
+}
+
 export function RequireAuth({ children }: RequireAuthProps) {
   const location = useLocation();
   const status = useAuthStore((state) => state.status);
@@ -18,16 +35,7 @@ export function RequireAuth({ children }: RequireAuthProps) {
   useAuthBootstrap();
 
   if (!bootstrapped || status === "idle" || status === "loading") {
-    return (
-      <div className="leaf-gradient flex min-h-screen items-center justify-center p-4">
-        <div className="w-full max-w-lg">
-          <LoadingState
-            title="Verificando sessão"
-            description="Só um instante enquanto validamos seu acesso."
-          />
-        </div>
-      </div>
-    );
+    return <FullPageAuthLoading />;
   }
 
   if (status !== "authenticated") {

@@ -22,6 +22,7 @@ export type AuthState = {
 };
 
 type Listener = () => void;
+type AuthStateUpdater = AuthState | ((currentState: AuthState) => AuthState);
 
 const listeners = new Set<Listener>();
 
@@ -32,10 +33,26 @@ let state: AuthState = {
 };
 
 function emitChange(): void {
-  listeners.forEach((listener) => listener());
+  Array.from(listeners).forEach((listener) => {
+    listener();
+  });
 }
 
-function setState(nextState: AuthState): void {
+function isSameAuthState(currentState: AuthState, nextState: AuthState): boolean {
+  return (
+    currentState.status === nextState.status &&
+    currentState.user === nextState.user &&
+    currentState.bootstrapped === nextState.bootstrapped
+  );
+}
+
+function setState(updater: AuthStateUpdater): void {
+  const nextState = typeof updater === "function" ? updater(state) : updater;
+
+  if (isSameAuthState(state, nextState)) {
+    return;
+  }
+
   state = nextState;
   emitChange();
 }
@@ -53,10 +70,11 @@ export function getAuthState(): AuthState {
 }
 
 export function setAuthLoading(): void {
-  setState({
-    ...state,
+  setState((currentState) => ({
+    ...currentState,
     status: "loading",
-  });
+    user: null,
+  }));
 }
 
 export function setAuthenticated(user: AuthUser): void {
@@ -93,6 +111,14 @@ export function useAuthStore<T>(selector: (state: AuthState) => T): T {
 
 export function useAuthUser(): AuthUser | null {
   return useAuthStore((currentState) => currentState.user);
+}
+
+export function useAuthStatus(): AuthStatus {
+  return useAuthStore((currentState) => currentState.status);
+}
+
+export function useAuthBootstrapped(): boolean {
+  return useAuthStore((currentState) => currentState.bootstrapped);
 }
 
 export function useIsAuthenticated(): boolean {
