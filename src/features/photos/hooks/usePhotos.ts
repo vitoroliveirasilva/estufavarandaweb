@@ -1,0 +1,130 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+import {
+  deletePlantPhoto,
+  downloadPlantPhoto,
+  listPlantPhotos,
+  uploadPlantPhoto,
+} from "@/features/photos/api/photosApi";
+import type { PhotoUploadFormValues } from "@/features/photos/schemas/photoSchemas";
+import type {
+  PhotoListParams,
+  UploadPhotoPayload,
+} from "@/features/photos/types/photoTypes";
+
+export const photoQueryKeys = {
+  root: ["photos"] as const,
+  lists: (plantId: number) =>
+    [...photoQueryKeys.root, "list", plantId] as const,
+  list: (plantId: number, params: PhotoListParams) =>
+    [...photoQueryKeys.lists(plantId), params] as const,
+};
+
+function cleanString(value: string | undefined): string | undefined {
+  const normalized = value?.trim();
+  return normalized ? normalized : undefined;
+}
+
+function toIsoWithLocalOffset(value?: string): string | undefined {
+  const normalized = value?.trim();
+
+  if (!normalized) {
+    return undefined;
+  }
+
+  const date = new Date(normalized);
+
+  if (Number.isNaN(date.getTime())) {
+    return normalized;
+  }
+
+  const pad = (input: number) => String(input).padStart(2, "0");
+  const timezoneOffsetMinutes = -date.getTimezoneOffset();
+  const sign = timezoneOffsetMinutes >= 0 ? "+" : "-";
+  const absoluteOffset = Math.abs(timezoneOffsetMinutes);
+  const offsetHours = Math.floor(absoluteOffset / 60);
+  const offsetMinutes = absoluteOffset % 60;
+
+  return [
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`,
+    `T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`,
+    `${sign}${pad(offsetHours)}:${pad(offsetMinutes)}`,
+  ].join("");
+}
+
+export function normalizePhotoUploadFormValues(
+  values: PhotoUploadFormValues,
+): UploadPhotoPayload {
+  const file = values.file.item(0);
+
+  if (!file) {
+    throw new Error("Arquivo não selecionado.");
+  }
+
+  return {
+    file,
+    photo_type: cleanString(values.photo_type) ?? "routine",
+    caption: cleanString(values.caption),
+    notes: cleanString(values.notes),
+    taken_at: toIsoWithLocalOffset(values.taken_at),
+  };
+}
+
+export function toDatetimeLocalValue(value?: string | null): string {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const pad = (input: number) => String(input).padStart(2, "0");
+
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+    date.getDate(),
+  )}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+export function usePlantPhotos(plantId: number, params: PhotoListParams) {
+  return useQuery({
+    queryKey: photoQueryKeys.list(plantId, params),
+    queryFn: () => listPlantPhotos(plantId, params),
+    enabled: plantId > 0,
+  });
+}
+
+export function useUploadPlantPhotoMutation(plantId: number) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: UploadPhotoPayload) =>
+      uploadPlantPhoto(plantId, payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: photoQueryKeys.lists(plantId),
+      });
+    },
+  });
+}
+
+export function useDeletePlantPhotoMutation(plantId: number) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (photoId: number) => deletePlantPhoto(plantId, photoId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: photoQueryKeys.lists(plantId),
+      });
+    },
+  });
+}
+
+export function useDownloadPlantPhotoMutation(plantId: number) {
+  return useMutation({
+    mutationFn: (photoId: number) => downloadPlantPhoto(plantId, photoId),
+  });
+}

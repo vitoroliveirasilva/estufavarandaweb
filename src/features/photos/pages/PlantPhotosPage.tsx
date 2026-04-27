@@ -1,37 +1,200 @@
-import { Camera } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { ArrowLeft, Camera } from "lucide-react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 
+import { getAppErrorMessage } from "@/core/api/apiError";
+import { usePlantDetail } from "@/features/plants/hooks/usePlants";
+import { PhotoUploadForm } from "@/features/photos/components/PhotoUploadForm";
+import { PhotosGrid } from "@/features/photos/components/PhotosGrid";
+import {
+    normalizePhotoUploadFormValues,
+    useDeletePlantPhotoMutation,
+    useDownloadPlantPhotoMutation,
+    usePlantPhotos,
+    useUploadPlantPhotoMutation
+} from "@/features/photos/hooks/usePhotos";
+import type { PhotoUploadFormValues } from "@/features/photos/schemas/photoSchemas";
+import { EmptyState } from "@/shared/components/EmptyState";
+import { ErrorState } from "@/shared/components/ErrorState";
+import { LoadingState } from "@/shared/components/LoadingState";
 import { PageHeader } from "@/shared/components/PageHeader";
-import { RoutePlaceholder } from "@/shared/components/RoutePlaceholder";
 import { Button } from "@/shared/components/ui/button";
+
+function parsePositiveInt(value: string | null | undefined, fallback: number): number {
+    if (!value) {
+        return fallback;
+    }
+
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function openBlobInNewTab(blob: Blob): void {
+    const objectUrl = URL.createObjectURL(blob);
+    window.open(objectUrl, "_blank", "noopener,noreferrer");
+
+    window.setTimeout(() => {
+        URL.revokeObjectURL(objectUrl);
+    }, 60_000);
+}
 
 export function PlantPhotosPage() {
     const { plantId } = useParams();
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    const parsedPlantId = parsePositiveInt(plantId, 0);
+    const page = parsePositiveInt(searchParams.get("page"), 1);
+    const pageSize = parsePositiveInt(searchParams.get("page_size"), 20);
+
+    const plantQuery = usePlantDetail(parsedPlantId, parsedPlantId > 0);
+    const photosQuery = usePlantPhotos(parsedPlantId, {
+        page,
+        page_size: pageSize
+    });
+
+    const uploadMutation = useUploadPlantPhotoMutation(parsedPlantId);
+    const deleteMutation = useDeletePlantPhotoMutation(parsedPlantId);
+    const downloadMutation = useDownloadPlantPhotoMutation(parsedPlantId);
+
+    if (!parsedPlantId) {
+        return (
+            <ErrorState
+                title="Planta inválida"
+                description="O identificador informado na URL não é válido."
+            />
+        );
+    }
+
+    const total = photosQuery.data?.meta?.total ?? photosQuery.data?.items.length ?? 0;
+    const totalPages =
+        photosQuery.data?.meta?.total_pages ?? Math.max(1, Math.ceil(total / pageSize));
+    const hasPhotos = Boolean(photosQuery.data?.items.length);
+    const mutationError =
+        uploadMutation.error ?? deleteMutation.error ?? downloadMutation.error;
+    const isMutating =
+        uploadMutation.isPending || deleteMutation.isPending || downloadMutation.isPending;
+
+    function goToPage(nextPage: number) {
+        const next = new URLSearchParams(searchParams);
+        next.set("page", String(nextPage));
+        next.set("page_size", String(pageSize));
+        setSearchParams(next);
+    }
+
+    async function handleUpload(values: PhotoUploadFormValues) {
+        await uploadMutation.mutateAsync(normalizePhotoUploadFormValues(values));
+    }
+
+    async function handleOpen(photoId: number) {
+        try {
+            const blob = await downloadMutation.mutateAsync(photoId);
+            openBlobInNewTab(blob);
+        } catch {
+            // O erro é exibido abaixo.
+        }
+    }
+
+    function handleDelete(photoId: number) {
+        const confirmed = window.confirm("Excluir esta foto?");
+
+        if (!confirmed) {
+            return;
+        }
+
+        deleteMutation.mutate(photoId);
+    }
 
     return (
         <>
             <PageHeader
                 eyebrow="Fotos"
-                title={`Fotos da planta ${plantId ?? ""}`}
-                description="Upload, listagem, download e remoção de fotos entram no Bloco 8."
+                title={`Fotos${plantQuery.data?.name ? ` · ${plantQuery.data.name}` : ""}`}
+                description="Galeria protegida, upload multipart e download autenticado."
                 actions={
                     <Button asChild variant="outline">
-                        <Link to={`/app/plants/${plantId ?? "1"}`}>Voltar para planta</Link>
+                        <Link to={`/app/plants/${parsedPlantId}`}>
+                            <ArrowLeft className="mr-2 h-4 w-4" />
+                            Voltar para planta
+                        </Link>
                     </Button>
                 }
             />
 
-            <RoutePlaceholder
-                icon={<Camera className="h-5 w-5" />}
-                title="Fotos preparadas"
-                description="A tela está pronta para receber upload multipart/form-data e galeria protegida."
-                bullets={[
-                    "GET /plants/{plantId}/photos",
-                    "POST /plants/{plantId}/photos",
-                    "DELETE /plants/{plantId}/photos/{photoId}",
-                    "GET /plants/{plantId}/photos/{photoId}/download"
-                ]}
-            />
+            <div className="space-y-5">
+                <PhotoUploadForm
+                    isSubmitting={uploadMutation.isPending}
+                    apiErrorMessage={
+                        uploadMutation.error ? getAppErrorMessage(uploadMutation.error) : null
+                    }
+                    onSubmit={handleUpload}
+                />
+
+                {mutationError ? (
+                    <ErrorState
+                        title="Não foi possível concluir a ação"
+                        description={getAppErrorMessage(mutationError)}
+                    />
+                ) : null}
+
+                {photosQuery.isLoading ? (
+                    <LoadingState
+                        title="Carregando fotos"
+                        description="Buscando fotos da planta na API."
+                    />
+                ) : null}
+
+                {photosQuery.isError ? (
+                    <ErrorState
+                        title="Não foi possível carregar as fotos"
+                        description={getAppErrorMessage(photosQuery.error)}
+                        actionLabel="Tentar novamente"
+                        onAction={() => void photosQuery.refetch()}
+                    />
+                ) : null}
+
+                {!photosQuery.isLoading && !photosQuery.isError && !hasPhotos ? (
+                    <EmptyState
+                        icon={<Camera className="h-6 w-6" />}
+                        title="Nenhuma foto enviada"
+                        description="Envie a primeira foto para criar a linha visual da evolução desta planta."
+                    />
+                ) : null}
+
+                {hasPhotos ? (
+                    <>
+                        <PhotosGrid
+                            photos={photosQuery.data?.items ?? []}
+                            isMutating={isMutating}
+                            onOpen={handleOpen}
+                            onDelete={handleDelete}
+                        />
+
+                        <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border bg-card px-4 py-3 sm:flex-row">
+                            <p className="text-sm text-muted-foreground">
+                                Página {page} de {totalPages} · {total} registro(s)
+                            </p>
+
+                            <div className="flex gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    disabled={page <= 1 || photosQuery.isFetching}
+                                    onClick={() => goToPage(page - 1)}
+                                >
+                                    Anterior
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    disabled={page >= totalPages || photosQuery.isFetching}
+                                    onClick={() => goToPage(page + 1)}
+                                >
+                                    Próxima
+                                </Button>
+                            </div>
+                        </div>
+                    </>
+                ) : null}
+            </div>
         </>
     );
 }
