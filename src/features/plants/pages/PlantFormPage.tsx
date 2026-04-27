@@ -1,111 +1,161 @@
-import { type FormEvent } from "react";
-import { Link, useParams } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
+import { getAppErrorMessage } from "@/core/api/apiError";
+import { PlantForm } from "@/features/plants/components/PlantForm";
+import {
+    defaultPlantFormValues,
+    type PlantFormValues
+} from "@/features/plants/schemas/plantSchemas";
+import {
+    normalizePlantFormValues,
+    useCreatePlantMutation,
+    usePlantDetail,
+    useUpdatePlantMutation
+} from "@/features/plants/hooks/usePlants";
+import type { PlantDetail } from "@/features/plants/types/plantTypes";
+import { ErrorState } from "@/shared/components/ErrorState";
+import { LoadingState } from "@/shared/components/LoadingState";
 import { PageHeader } from "@/shared/components/PageHeader";
 import { Button } from "@/shared/components/ui/button";
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle
-} from "@/shared/components/ui/card";
-import { Input } from "@/shared/components/ui/input";
-import { Label } from "@/shared/components/ui/label";
 
 type PlantFormPageProps = {
     mode: "create" | "edit";
 };
 
+function parsePlantId(value: string | undefined): number | null {
+    if (!value) {
+        return null;
+    }
+
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function toStringValue(value: unknown): string {
+    if (typeof value === "string") {
+        return value;
+    }
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+        return String(value);
+    }
+
+    return "";
+}
+
+function plantToFormValues(plant: PlantDetail): PlantFormValues {
+    return {
+        name: toStringValue(plant.name),
+        nickname: toStringValue(plant.nickname),
+        environment: toStringValue(plant.environment),
+        light_exposure: toStringValue(plant.light_exposure),
+        ventilation: toStringValue(plant.ventilation),
+        location_label: toStringValue(plant.location_label),
+        city_name: toStringValue(plant.city_name),
+        notes: toStringValue(plant.notes),
+        health_status: toStringValue(plant.health_status),
+        species_profile_id: toStringValue(
+            plant.species_profile_id ?? plant.species_profile?.id
+        )
+    };
+}
+
 export function PlantFormPage({ mode }: PlantFormPageProps) {
+    const navigate = useNavigate();
     const { plantId } = useParams();
     const isEdit = mode === "edit";
+    const parsedPlantId = parsePlantId(plantId);
 
-    function handleSubmit(event: FormEvent<HTMLFormElement>) {
-        event.preventDefault();
+    const plantQuery = usePlantDetail(parsedPlantId, isEdit);
+    const createMutation = useCreatePlantMutation();
+    const updateMutation = useUpdatePlantMutation(parsedPlantId ?? 0);
+
+    const mutationError = createMutation.error ?? updateMutation.error;
+    const isSubmitting = createMutation.isPending || updateMutation.isPending;
+
+    if (isEdit && !parsedPlantId) {
+        return (
+            <ErrorState
+                title="Planta inválida"
+                description="O identificador informado na URL não é válido."
+            />
+        );
     }
+
+    async function handleSubmit(values: PlantFormValues) {
+        const payload = normalizePlantFormValues(values);
+
+        if (isEdit) {
+            if (!parsedPlantId) {
+                return;
+            }
+
+            await updateMutation.mutateAsync(payload);
+            navigate(`/app/plants/${parsedPlantId}`, { replace: true });
+            return;
+        }
+
+        const created = await createMutation.mutateAsync(payload);
+        navigate(`/app/plants/${created.id}`, { replace: true });
+    }
+
+    const title = isEdit ? "Editar planta" : "Cadastrar planta";
+    const description = isEdit
+        ? "Atualize os dados da planta usando PATCH /plants/{plantId}."
+        : "Crie uma nova planta usando POST /plants.";
 
     return (
         <>
             <PageHeader
-                eyebrow={isEdit ? "Editar planta" : "Nova planta"}
-                title={isEdit ? `Editar planta ${plantId ?? ""}` : "Cadastrar planta"}
-                description="Formulário visual inicial. Schemas Zod, React Hook Form e integração entram no Bloco 5."
+                eyebrow={isEdit ? "Editar" : "Nova planta"}
+                title={title}
+                description={description}
                 actions={
                     <Button asChild variant="outline">
-                        <Link to={isEdit ? `/app/plants/${plantId ?? "1"}` : "/app/plants"}>
+                        <Link to={isEdit ? `/app/plants/${parsedPlantId ?? ""}` : "/app/plants"}>
+                            <ArrowLeft className="mr-2 h-4 w-4" />
                             Cancelar
                         </Link>
                     </Button>
                 }
             />
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Dados principais</CardTitle>
-                    <CardDescription>
-                        Campos alinhados com o contrato de criação e atualização de plantas.
-                    </CardDescription>
-                </CardHeader>
+            {isEdit && plantQuery.isLoading ? (
+                <LoadingState
+                    title="Carregando planta"
+                    description="Buscando dados para edição."
+                />
+            ) : null}
 
-                <CardContent>
-                    <form className="grid gap-5 md:grid-cols-2" onSubmit={handleSubmit}>
-                        <div className="space-y-2 md:col-span-2">
-                            <Label htmlFor="name">Nome</Label>
-                            <Input id="name" name="name" placeholder="Roseira" />
-                        </div>
+            {isEdit && plantQuery.isError ? (
+                <ErrorState
+                    title="Não foi possível carregar a planta"
+                    description={getAppErrorMessage(plantQuery.error)}
+                    actionLabel="Tentar novamente"
+                    onAction={() => void plantQuery.refetch()}
+                />
+            ) : null}
 
-                        <div className="space-y-2">
-                            <Label htmlFor="nickname">Apelido</Label>
-                            <Input id="nickname" name="nickname" placeholder="Rosinha" />
-                        </div>
+            {!isEdit ? (
+                <PlantForm
+                    initialValues={defaultPlantFormValues}
+                    submitLabel="Cadastrar planta"
+                    isSubmitting={isSubmitting}
+                    apiErrorMessage={mutationError ? getAppErrorMessage(mutationError) : null}
+                    onSubmit={handleSubmit}
+                />
+            ) : null}
 
-                        <div className="space-y-2">
-                            <Label htmlFor="healthStatus">Status de saúde</Label>
-                            <Input
-                                id="healthStatus"
-                                name="health_status"
-                                placeholder="attention"
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="environment">Ambiente</Label>
-                            <Input id="environment" name="environment" placeholder="outdoor" />
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="lightExposure">Exposição de luz</Label>
-                            <Input
-                                id="lightExposure"
-                                name="light_exposure"
-                                placeholder="afternoon_sun"
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="ventilation">Ventilação</Label>
-                            <Input id="ventilation" name="ventilation" placeholder="airy" />
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="locationLabel">Local</Label>
-                            <Input id="locationLabel" name="location_label" placeholder="Varanda" />
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="cityName">Cidade</Label>
-                            <Input id="cityName" name="city_name" placeholder="Jundiaí" />
-                        </div>
-
-                        <div className="flex justify-end md:col-span-2">
-                            <Button type="submit">
-                                {isEdit ? "Salvar alterações" : "Cadastrar planta"}
-                            </Button>
-                        </div>
-                    </form>
-                </CardContent>
-            </Card>
+            {isEdit && plantQuery.data ? (
+                <PlantForm
+                    initialValues={plantToFormValues(plantQuery.data)}
+                    submitLabel="Salvar alterações"
+                    isSubmitting={isSubmitting}
+                    apiErrorMessage={mutationError ? getAppErrorMessage(mutationError) : null}
+                    onSubmit={handleSubmit}
+                />
+            ) : null}
         </>
     );
 }
