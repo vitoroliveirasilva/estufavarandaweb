@@ -18,14 +18,14 @@ Oferecer uma interface web para:
 - perguntas para IA;
 - administração de usuários.
 
-A API Flask continua sendo a fonte única de regra de negócio. O front não duplica regra sensível, apenas trata experiência, navegação, formulários, cache, estado e chamadas HTTP.
+A API Flask continua sendo a fonte única das regras de negócio. O front trata navegação, formulários, cache, estado de tela, experiência do usuário e chamadas HTTP.
 
 ## Requisitos
 
-- Node.js LTS.
-- npm.
+- Node.js 18.18 ou superior.
+- npm 9 ou superior.
 - API Flask rodando.
-- `.env` configurado.
+- Arquivo `.env` configurado.
 
 ## Configuração
 
@@ -34,7 +34,10 @@ Crie o arquivo `.env` na raiz do projeto com base no `.env.example`:
 ```env
 VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1
 VITE_APP_NAME=Estufa da Varanda
+VITE_API_TIMEOUT_MS=15000
 ```
+
+Nunca versione arquivos `.env` reais. Apenas o `.env.example` deve ir para o Git.
 
 ## Instalação
 
@@ -52,6 +55,12 @@ Acesse:
 
 ```txt
 http://127.0.0.1:5173
+```
+
+Para expor o Vite na rede local, use:
+
+```bash
+npm run dev:host
 ```
 
 ## Build
@@ -86,7 +95,7 @@ Executar typecheck, testes e build:
 npm run check
 ```
 
-## Estrutura principal
+## Estrutura principal esperada
 
 ```txt
 src/
@@ -138,18 +147,18 @@ src/
 9. Se falhar, limpa a sessão local e volta para login.
 10. Logout chama `POST /auth/logout` e limpa sessão local mesmo se a API falhar.
 
-## Observação de segurança sobre tokens
+## Segurança dos tokens
 
 No MVP, os tokens são salvos em `localStorage` por meio de `tokenStorage.ts`.
 
-Isso deixa o front simples para desenvolvimento, mas em produção a estratégia ideal é migrar para cookie HTTP-only, Secure e SameSite, caso a API seja ajustada para isso.
+Essa estratégia simplifica o desenvolvimento, mas em produção a alternativa mais segura é migrar para cookie HTTP-only, Secure e SameSite, caso a API seja ajustada para esse fluxo.
 
-Enquanto a API usar JWT retornado no body:
+Enquanto a API retornar JWT no corpo da resposta:
 
 - não logar access token;
 - não logar refresh token;
 - não salvar senha;
-- não colocar tokens em código;
+- não colocar tokens no código;
 - não commitar `.env`;
 - não exportar collection Postman com credenciais reais.
 
@@ -240,18 +249,6 @@ PATCH /admin/users/{userId}/deactivate
 POST  /admin/users/{userId}/reset-password
 POST  /admin/users/{userId}/revoke-sessions
 GET   /admin/login-attempts
-```
-
-## Scripts
-
-```bash
-npm run dev
-npm run build
-npm run preview
-npm run typecheck
-npm test
-npm run test:run
-npm run check
 ```
 
 ## Fluxo recomendado antes de subir alteração
