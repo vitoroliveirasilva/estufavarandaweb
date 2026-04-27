@@ -1,5 +1,5 @@
 import { ArrowLeft, Bot } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
 import { getAppErrorMessage } from "@/core/api/apiError";
@@ -20,13 +20,36 @@ import { LoadingState } from "@/shared/components/LoadingState";
 import { PageHeader } from "@/shared/components/PageHeader";
 import { Button } from "@/shared/components/ui/button";
 
-function parsePositiveInt(value: string | null | undefined, fallback: number): number {
+const DEFAULT_PAGE = 1;
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100;
+
+function parsePositiveInt(
+    value: string | null | undefined,
+    fallback: number,
+    max?: number
+): number {
     if (!value) {
         return fallback;
     }
 
     const parsed = Number(value);
-    return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+        return fallback;
+    }
+
+    return typeof max === "number" ? Math.min(parsed, max) : parsed;
+}
+
+function normalizeTotalPages(value: unknown, total: number, pageSize: number): number {
+    const parsed = Number(value);
+
+    if (Number.isInteger(parsed) && parsed > 0) {
+        return parsed;
+    }
+
+    return Math.max(1, Math.ceil(total / pageSize));
 }
 
 export function PlantAiPage() {
@@ -35,14 +58,24 @@ export function PlantAiPage() {
     const [lastResponse, setLastResponse] = useState<AskAiResponse | null>(null);
 
     const parsedPlantId = parsePositiveInt(plantId, 0);
-    const page = parsePositiveInt(searchParams.get("page"), 1);
-    const pageSize = parsePositiveInt(searchParams.get("page_size"), 20);
+    const page = parsePositiveInt(searchParams.get("page"), DEFAULT_PAGE);
+    const pageSize = parsePositiveInt(
+        searchParams.get("page_size"),
+        DEFAULT_PAGE_SIZE,
+        MAX_PAGE_SIZE
+    );
+
+    const conversationsParams = useMemo(
+        () => ({ page, page_size: pageSize }),
+        [page, pageSize]
+    );
 
     const plantQuery = usePlantDetail(parsedPlantId, parsedPlantId > 0);
-    const conversationsQuery = useAiConversations(parsedPlantId, {
-        page,
-        page_size: pageSize
-    });
+    const conversationsQuery = useAiConversations(
+        parsedPlantId,
+        conversationsParams,
+        parsedPlantId > 0
+    );
     const askMutation = useAskPlantAiMutation(parsedPlantId);
 
     if (!parsedPlantId) {
@@ -54,18 +87,22 @@ export function PlantAiPage() {
         );
     }
 
-    const total =
-        conversationsQuery.data?.meta?.total ??
-        conversationsQuery.data?.items.length ??
-        0;
-    const totalPages =
-        conversationsQuery.data?.meta?.total_pages ??
-        Math.max(1, Math.ceil(total / pageSize));
-    const hasConversations = Boolean(conversationsQuery.data?.items.length);
+    const conversations = conversationsQuery.data?.items ?? [];
+    const total = conversationsQuery.data?.meta?.total ?? conversations.length;
+    const totalPages = normalizeTotalPages(
+        conversationsQuery.data?.meta?.total_pages,
+        total,
+        pageSize
+    );
+    const hasConversations = conversations.length > 0;
+    const isInitialLoading = conversationsQuery.isPending;
+    const plantName = plantQuery.data?.name;
 
     function goToPage(nextPage: number) {
+        const boundedPage = Math.min(Math.max(nextPage, 1), totalPages);
         const next = new URLSearchParams(searchParams);
-        next.set("page", String(nextPage));
+
+        next.set("page", String(boundedPage));
         next.set("page_size", String(pageSize));
         setSearchParams(next);
     }
@@ -79,7 +116,7 @@ export function PlantAiPage() {
         <>
             <PageHeader
                 eyebrow="IA"
-                title={`IA${plantQuery.data?.name ? ` · ${plantQuery.data.name}` : ""}`}
+                title={`IA${plantName ? ` · ${plantName}` : ""}`}
                 description="Pergunte sobre a planta e acompanhe conversas registradas."
                 actions={
                     <Button asChild variant="outline">
@@ -90,6 +127,17 @@ export function PlantAiPage() {
                     </Button>
                 }
             />
+
+            {plantQuery.isError ? (
+                <div className="mb-5">
+                    <ErrorState
+                        title="Não foi possível carregar os dados da planta"
+                        description={getAppErrorMessage(plantQuery.error)}
+                        actionLabel="Tentar novamente"
+                        onAction={() => void plantQuery.refetch()}
+                    />
+                </div>
+            ) : null}
 
             <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
                 <div className="space-y-5">
@@ -105,7 +153,7 @@ export function PlantAiPage() {
                 </div>
 
                 <div className="space-y-5">
-                    {conversationsQuery.isLoading ? (
+                    {isInitialLoading ? (
                         <LoadingState
                             title="Carregando conversas"
                             description="Buscando histórico de IA da planta."
@@ -121,9 +169,7 @@ export function PlantAiPage() {
                         />
                     ) : null}
 
-                    {!conversationsQuery.isLoading &&
-                        !conversationsQuery.isError &&
-                        !hasConversations ? (
+                    {!isInitialLoading && !conversationsQuery.isError && !hasConversations ? (
                         <EmptyState
                             icon={<Bot className="h-6 w-6" />}
                             title="Nenhuma conversa registrada"
@@ -133,13 +179,14 @@ export function PlantAiPage() {
 
                     {hasConversations ? (
                         <>
-                            <AiConversationsList
-                                conversations={conversationsQuery.data?.items ?? []}
-                            />
+                            <AiConversationsList conversations={conversations} />
 
                             <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border bg-card px-4 py-3 sm:flex-row">
-                                <p className="text-sm text-muted-foreground">
+                                <p className="text-sm text-muted-foreground" aria-live="polite">
                                     Página {page} de {totalPages} · {total} registro(s)
+                                    {conversationsQuery.isFetching && !isInitialLoading
+                                        ? " · Atualizando"
+                                        : ""}
                                 </p>
 
                                 <div className="flex gap-2">

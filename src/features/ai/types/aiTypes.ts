@@ -1,10 +1,17 @@
 import type { PaginationMeta } from "@/core/api/responseEnvelope";
 
+export type JsonPrimitive = string | number | boolean | null;
+
+export type JsonValue =
+  | JsonPrimitive
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+
 export type AskAiPayload = {
   question: string;
 };
 
-export type AskAiResponse = Record<string, unknown>;
+export type AskAiResponse = Record<string, JsonValue>;
 
 export type AiConversation = {
   id: number;
