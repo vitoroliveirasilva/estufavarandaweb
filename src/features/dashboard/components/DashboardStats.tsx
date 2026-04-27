@@ -1,38 +1,46 @@
+import type { LucideIcon } from "lucide-react";
 import { Bell, Leaf, ShieldCheck, Sprout } from "lucide-react";
 
 import { StatCard } from "@/shared/components/StatCard";
 
-const stats = [
+type DashboardStat = {
+    readonly title: string;
+    readonly value: string;
+    readonly description: string;
+    readonly icon: LucideIcon;
+};
+
+const DASHBOARD_STATS = [
     {
-        title: "Módulo de plantas",
-        value: "Pronto",
-        description: "Estrutura preparada para listar, criar, editar e arquivar.",
-        icon: Sprout
+        title: "Plantas",
+        value: "MVP",
+        description: "Listagem, cadastro, edição e arquivamento preparados para uso.",
+        icon: Sprout,
     },
     {
         title: "Autenticação",
         value: "JWT",
-        description: "Login, refresh token, guards e logout já conectados.",
-        icon: ShieldCheck
+        description: "Login, renovação de sessão, rotas protegidas e logout conectados.",
+        icon: ShieldCheck,
     },
     {
         title: "Cuidados",
-        value: "2 rotas",
-        description: "Regas e eventos entram com integração no próximo bloco.",
-        icon: Leaf
+        value: "Ativo",
+        description: "Regas, eventos e histórico por planta organizados em rotas próprias.",
+        icon: Leaf,
     },
     {
         title: "Notificações",
-        value: "Fila",
-        description: "Central pronta para listar, marcar como lida e descartar.",
-        icon: Bell
-    }
-];
+        value: "Central",
+        description: "Fila preparada para leitura, descarte e acompanhamento de alertas.",
+        icon: Bell,
+    },
+] satisfies readonly DashboardStat[];
 
 export function DashboardStats() {
     return (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {stats.map((stat) => (
+            {DASHBOARD_STATS.map((stat) => (
                 <StatCard
                     key={stat.title}
                     title={stat.title}

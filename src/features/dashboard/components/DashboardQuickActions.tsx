@@ -1,42 +1,51 @@
+import type { LucideIcon } from "lucide-react";
 import { Bell, Leaf, Plus, Sprout } from "lucide-react";
 
 import { QuickActionCard } from "@/shared/components/QuickActionCard";
 
-const actions = [
+type QuickAction = {
+    readonly title: string;
+    readonly description: string;
+    readonly icon: LucideIcon;
+    readonly to: string;
+    readonly actionLabel: string;
+};
+
+const QUICK_ACTIONS = [
     {
         title: "Cadastrar planta",
-        description: "Abra o formulário base de criação. A integração real entra no Bloco 5.",
+        description: "Crie uma nova planta com os dados básicos de identificação e cuidado.",
         icon: Plus,
         to: "/app/plants/new",
-        actionLabel: "Nova planta"
+        actionLabel: "Nova planta",
     },
     {
         title: "Minhas plantas",
-        description: "Acesse a listagem preparada para busca, filtros e paginação.",
+        description: "Acesse a listagem com busca, filtros, paginação e ações por planta.",
         icon: Sprout,
         to: "/app/plants",
-        actionLabel: "Abrir lista"
+        actionLabel: "Abrir lista",
     },
     {
         title: "Espécies",
-        description: "Consulte o catálogo de espécies preparado para o Bloco 7.",
+        description: "Consulte o catálogo de espécies usado como referência para cuidados.",
         icon: Leaf,
         to: "/app/species",
-        actionLabel: "Ver catálogo"
+        actionLabel: "Ver catálogo",
     },
     {
         title: "Notificações",
-        description: "Abra a central que receberá leitura e descarte de alertas.",
+        description: "Acompanhe alertas de rega, cuidados pendentes e avisos do sistema.",
         icon: Bell,
         to: "/app/notifications",
-        actionLabel: "Abrir central"
-    }
-];
+        actionLabel: "Abrir central",
+    },
+] satisfies readonly QuickAction[];
 
 export function DashboardQuickActions() {
     return (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {actions.map((action) => (
+            {QUICK_ACTIONS.map((action) => (
                 <QuickActionCard
                     key={action.title}
                     title={action.title}

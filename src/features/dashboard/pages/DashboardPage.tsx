@@ -14,23 +14,23 @@ export function DashboardPage() {
             <PageHeader
                 eyebrow="Home"
                 title="Dashboard"
-                description="Visão inicial do site web da Estufa da Varanda, com autenticação ativa e módulos preparados para integração."
+                description="Visão inicial da Estufa da Varanda, com autenticação ativa e atalhos para os principais módulos do MVP."
             />
 
             <WelcomePanel user={user} />
 
-            <section>
+            <section aria-label="Resumo do MVP">
                 <SectionHeader
                     title="Resumo do MVP"
-                    description="Estado atual da fundação web antes da integração das features de domínio."
+                    description="Estado atual da fundação web e das principais áreas do sistema."
                 />
                 <DashboardStats />
             </section>
 
-            <section>
+            <section aria-label="Ações rápidas">
                 <SectionHeader
                     title="Ações rápidas"
-                    description="Atalhos principais para navegar pelo MVP."
+                    description="Atalhos principais para navegar pelo sistema."
                 />
                 <DashboardQuickActions />
             </section>
