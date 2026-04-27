@@ -1,19 +1,24 @@
-import axios from "axios";
+import axios, { type AxiosInstance } from "axios";
 
 import { env } from "@/core/config/env";
 
+const API_TIMEOUT_MS = 20_000;
+
 const defaultHeaders = {
-  Accept: "application/json"
-};
+  Accept: "application/json",
+} as const;
 
-export const apiClient = axios.create({
-  baseURL: env.apiBaseUrl,
-  timeout: 20_000,
-  headers: defaultHeaders
-});
+function createApiClient(): AxiosInstance {
+  return axios.create({
+    baseURL: env.apiBaseUrl,
+    timeout: API_TIMEOUT_MS,
+    timeoutErrorMessage: "A requisição demorou demais. Tente novamente.",
+    headers: defaultHeaders,
+    transitional: {
+      clarifyTimeoutError: true,
+    },
+  });
+}
 
-export const publicApiClient = axios.create({
-  baseURL: env.apiBaseUrl,
-  timeout: 20_000,
-  headers: defaultHeaders
-});
+export const apiClient = createApiClient();
+export const publicApiClient = createApiClient();

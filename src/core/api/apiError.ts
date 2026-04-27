@@ -26,10 +26,69 @@ type PossibleApiErrorBody = {
   detail?: unknown;
   details?: unknown;
   errors?: unknown;
+  title?: unknown;
+  description?: unknown;
 };
+
+const FALLBACK_MESSAGE = "Algo saiu do esperado. Tente novamente.";
+const MAX_MESSAGE_LENGTH = 300;
+const MAX_JOINED_MESSAGES = 3;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function sanitizeMessage(message: string): string | undefined {
+  const normalized = message.replace(/\s+/g, " ").trim();
+
+  if (!normalized) {
+    return undefined;
+  }
+
+  if (normalized.length <= MAX_MESSAGE_LENGTH) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, MAX_MESSAGE_LENGTH - 1).trim()}…`;
+}
+
+function normalizeMessage(value: unknown): string | undefined {
+  if (typeof value === "string") {
+    return sanitizeMessage(value);
+  }
+
+  if (Array.isArray(value)) {
+    const messages = value
+      .map((item) => normalizeMessage(item))
+      .filter((item): item is string => Boolean(item))
+      .slice(0, MAX_JOINED_MESSAGES);
+
+    return sanitizeMessage(messages.join(" "));
+  }
+
+  if (isRecord(value)) {
+    const directMessage =
+      normalizeMessage(value.message) ??
+      normalizeMessage(value.msg) ??
+      normalizeMessage(value.error) ??
+      normalizeMessage(value.detail);
+
+    if (directMessage) {
+      return directMessage;
+    }
+
+    const fieldMessages = Object.entries(value)
+      .map(([field, fieldError]) => {
+        const message = normalizeMessage(fieldError);
+        return message ? `${field}: ${message}` : undefined;
+      })
+      .filter((item): item is string => Boolean(item))
+      .slice(0, MAX_JOINED_MESSAGES);
+
+    return sanitizeMessage(fieldMessages.join(" "));
+  }
+
+  return undefined;
 }
 
 function extractMessage(data: unknown): string | undefined {
@@ -38,13 +97,32 @@ function extractMessage(data: unknown): string | undefined {
   }
 
   const body = data as PossibleApiErrorBody;
-  const possibleMessage = body.message ?? body.error ?? body.detail;
+  const candidates = [
+    body.message,
+    body.error,
+    body.detail,
+    body.title,
+    body.description,
+  ];
 
-  if (
-    typeof possibleMessage === "string" &&
-    possibleMessage.trim().length > 0
-  ) {
-    return possibleMessage.trim();
+  for (const candidate of candidates) {
+    const message = normalizeMessage(candidate);
+
+    if (message) {
+      return message;
+    }
+  }
+
+  return undefined;
+}
+
+function normalizeDetails(details: unknown): ApiErrorDetail | undefined {
+  if (isRecord(details)) {
+    return details;
+  }
+
+  if (Array.isArray(details)) {
+    return { errors: details };
   }
 
   return undefined;
@@ -56,17 +134,24 @@ function extractDetails(data: unknown): ApiErrorDetail | undefined {
   }
 
   const body = data as PossibleApiErrorBody;
-  const possibleDetails = body.details ?? body.errors;
 
-  if (isRecord(possibleDetails)) {
-    return possibleDetails;
-  }
+  return (
+    normalizeDetails(body.details) ??
+    normalizeDetails(body.errors) ??
+    normalizeDetails(body.detail)
+  );
+}
 
-  return undefined;
+function isTimeoutError(error: AxiosError): boolean {
+  return (
+    error.code === "ECONNABORTED" ||
+    error.code === "ETIMEDOUT" ||
+    error.message.toLowerCase().includes("timeout")
+  );
 }
 
 function fromAxiosError(error: AxiosError): AppError {
-  if (error.code === "ECONNABORTED") {
+  if (isTimeoutError(error)) {
     return {
       code: "timeout",
       message: "A requisição demorou demais. Tente novamente.",
@@ -121,7 +206,18 @@ function fromAxiosError(error: AxiosError): AppError {
     return {
       code: "not_found",
       status,
-      message: "Registro não encontrado.",
+      message: apiMessage ?? "Registro não encontrado.",
+      details,
+      raw: error,
+    };
+  }
+
+  if (status === 429) {
+    return {
+      code: "unexpected",
+      status,
+      message:
+        apiMessage ?? "Muitas tentativas. Aguarde um pouco e tente novamente.",
       details,
       raw: error,
     };
@@ -140,7 +236,7 @@ function fromAxiosError(error: AxiosError): AppError {
   return {
     code: "unexpected",
     status,
-    message: apiMessage ?? "Algo saiu do esperado. Tente novamente.",
+    message: apiMessage ?? FALLBACK_MESSAGE,
     details,
     raw: error,
   };
@@ -154,14 +250,14 @@ export function parseApiError(error: unknown): AppError {
   if (error instanceof Error) {
     return {
       code: "unexpected",
-      message: error.message || "Algo saiu do esperado. Tente novamente.",
+      message: sanitizeMessage(error.message) ?? FALLBACK_MESSAGE,
       raw: error,
     };
   }
 
   return {
     code: "unexpected",
-    message: "Algo saiu do esperado. Tente novamente.",
+    message: FALLBACK_MESSAGE,
     raw: error,
   };
 }
