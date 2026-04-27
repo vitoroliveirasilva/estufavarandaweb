@@ -12,6 +12,10 @@ type AdminUsersFiltersProps = {
     onClear: () => void;
 };
 
+function normalizeSearch(value: string): string {
+    return value.trim().replace(/\s+/g, " ");
+}
+
 export function AdminUsersFilters({
     value,
     isFetching = false,
@@ -26,19 +30,30 @@ export function AdminUsersFilters({
 
     function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
-        onChange(draft);
+        onChange(normalizeSearch(draft));
+    }
+
+    function handleClear() {
+        setDraft("");
+        onClear();
     }
 
     return (
         <Card>
             <CardContent className="p-4">
-                <form className="flex flex-col gap-4 sm:flex-row sm:items-end" onSubmit={handleSubmit}>
+                <form
+                    className="flex flex-col gap-4 sm:flex-row sm:items-end"
+                    onSubmit={handleSubmit}
+                >
                     <div className="flex-1 space-y-2">
                         <Label htmlFor="admin-user-search">Buscar usuário</Label>
                         <Input
                             id="admin-user-search"
                             value={draft}
                             placeholder="Nome ou e-mail"
+                            maxLength={120}
+                            autoComplete="off"
+                            disabled={isFetching}
                             onChange={(event) => setDraft(event.target.value)}
                         />
                     </div>
@@ -50,8 +65,8 @@ export function AdminUsersFilters({
                         <Button
                             type="button"
                             variant="outline"
-                            disabled={isFetching}
-                            onClick={onClear}
+                            disabled={isFetching && !draft}
+                            onClick={handleClear}
                         >
                             Limpar
                         </Button>

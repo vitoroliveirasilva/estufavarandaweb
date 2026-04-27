@@ -22,28 +22,54 @@ import { LoadingState } from "@/shared/components/LoadingState";
 import { PageHeader } from "@/shared/components/PageHeader";
 import { Button } from "@/shared/components/ui/button";
 
-function parsePositiveInt(value: string | null, fallback: number): number {
+const DEFAULT_PAGE = 1;
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100;
+const MIN_PASSWORD_LENGTH = 8;
+
+function parsePositiveInt(value: string | null, fallback: number, max?: number): number {
     if (!value) {
         return fallback;
     }
 
     const parsed = Number(value);
-    return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+        return fallback;
+    }
+
+    return typeof max === "number" ? Math.min(parsed, max) : parsed;
+}
+
+function getTotalPages(total: number, pageSize: number, apiTotalPages?: number): number {
+    if (apiTotalPages && Number.isInteger(apiTotalPages) && apiTotalPages > 0) {
+        return apiTotalPages;
+    }
+
+    return Math.max(1, Math.ceil(total / pageSize));
 }
 
 export function AdminUsersPage() {
     const currentUser = useAuthUser();
+    const isAdmin = Boolean(currentUser?.is_admin);
     const [searchParams, setSearchParams] = useSearchParams();
 
-    const page = parsePositiveInt(searchParams.get("page"), 1);
-    const pageSize = parsePositiveInt(searchParams.get("page_size"), 20);
-    const search = searchParams.get("search") ?? "";
+    const page = parsePositiveInt(searchParams.get("page"), DEFAULT_PAGE);
+    const pageSize = parsePositiveInt(
+        searchParams.get("page_size"),
+        DEFAULT_PAGE_SIZE,
+        MAX_PAGE_SIZE
+    );
+    const search = searchParams.get("search")?.trim() ?? "";
 
-    const usersQuery = useAdminUsers({
-        page,
-        page_size: pageSize,
-        search: search || undefined
-    });
+    const usersQuery = useAdminUsers(
+        {
+            page,
+            page_size: pageSize,
+            search: search || undefined
+        },
+        { enabled: isAdmin }
+    );
 
     const createMutation = useCreateAdminUserMutation();
     const activateMutation = useActivateAdminUserMutation();
@@ -51,7 +77,7 @@ export function AdminUsersPage() {
     const resetPasswordMutation = useResetAdminUserPasswordMutation();
     const revokeSessionsMutation = useRevokeAdminUserSessionsMutation();
 
-    if (!currentUser?.is_admin) {
+    if (!isAdmin) {
         return (
             <ErrorState
                 title="Acesso administrativo necessário"
@@ -60,10 +86,10 @@ export function AdminUsersPage() {
         );
     }
 
-    const total = usersQuery.data?.meta?.total ?? usersQuery.data?.items.length ?? 0;
-    const totalPages =
-        usersQuery.data?.meta?.total_pages ?? Math.max(1, Math.ceil(total / pageSize));
-    const hasUsers = Boolean(usersQuery.data?.items.length);
+    const items = usersQuery.data?.items ?? [];
+    const total = usersQuery.data?.meta?.total ?? items.length;
+    const totalPages = getTotalPages(total, pageSize, usersQuery.data?.meta?.total_pages);
+    const hasUsers = items.length > 0;
 
     const mutationError =
         createMutation.error ??
@@ -79,14 +105,15 @@ export function AdminUsersPage() {
         resetPasswordMutation.isPending ||
         revokeSessionsMutation.isPending;
 
-    function updateParams(nextSearch: string, nextPage = 1) {
+    function updateParams(nextSearch: string, nextPage = DEFAULT_PAGE) {
+        const normalizedSearch = nextSearch.trim().replace(/\s+/g, " ");
         const next = new URLSearchParams();
 
-        next.set("page", String(nextPage));
+        next.set("page", String(Math.max(DEFAULT_PAGE, nextPage)));
         next.set("page_size", String(pageSize));
 
-        if (nextSearch.trim()) {
-            next.set("search", nextSearch.trim());
+        if (normalizedSearch) {
+            next.set("search", normalizedSearch);
         }
 
         setSearchParams(next);
@@ -94,45 +121,56 @@ export function AdminUsersPage() {
 
     function clearFilters() {
         const next = new URLSearchParams();
-        next.set("page", "1");
+        next.set("page", String(DEFAULT_PAGE));
         next.set("page_size", String(pageSize));
         setSearchParams(next);
     }
 
     function goToPage(nextPage: number) {
-        updateParams(search, nextPage);
+        updateParams(search, Math.min(Math.max(DEFAULT_PAGE, nextPage), totalPages));
     }
 
     async function handleCreate(values: AdminCreateUserFormValues) {
+        createMutation.reset();
         await createMutation.mutateAsync(normalizeAdminCreateUserFormValues(values));
     }
 
     function handleActivate(userId: number) {
+        activateMutation.reset();
         activateMutation.mutate(userId);
     }
 
     function handleDeactivate(userId: number) {
+        if (userId === currentUser?.id) {
+            window.alert("Não é permitido desativar o próprio usuário.");
+            return;
+        }
+
         const confirmed = window.confirm("Desativar este usuário?");
 
         if (!confirmed) {
             return;
         }
 
+        deactivateMutation.reset();
         deactivateMutation.mutate(userId);
     }
 
     function handleResetPassword(userId: number) {
-        const newPassword = window.prompt("Informe a nova senha, mínimo 8 caracteres:");
+        const newPassword = window.prompt(
+            `Informe a nova senha, mínimo ${MIN_PASSWORD_LENGTH} caracteres:`
+        );
 
-        if (!newPassword) {
+        if (newPassword === null || newPassword.trim().length === 0) {
             return;
         }
 
-        if (newPassword.length < 8) {
-            window.alert("A senha deve ter pelo menos 8 caracteres.");
+        if (newPassword.length < MIN_PASSWORD_LENGTH) {
+            window.alert(`A senha deve ter pelo menos ${MIN_PASSWORD_LENGTH} caracteres.`);
             return;
         }
 
+        resetPasswordMutation.reset();
         resetPasswordMutation.mutate({
             userId,
             payload: {
@@ -142,12 +180,18 @@ export function AdminUsersPage() {
     }
 
     function handleRevokeSessions(userId: number) {
+        if (userId === currentUser?.id) {
+            window.alert("Não é permitido revogar as próprias sessões por esta tela.");
+            return;
+        }
+
         const confirmed = window.confirm("Revogar todas as sessões deste usuário?");
 
         if (!confirmed) {
             return;
         }
 
+        revokeSessionsMutation.reset();
         revokeSessionsMutation.mutate(userId);
     }
 
@@ -209,10 +253,11 @@ export function AdminUsersPage() {
                 {hasUsers ? (
                     <>
                         <div className="space-y-4">
-                            {usersQuery.data?.items.map((user) => (
+                            {items.map((user) => (
                                 <AdminUserCard
                                     key={user.id}
                                     user={user}
+                                    isCurrentUser={user.id === currentUser?.id}
                                     isMutating={isMutating}
                                     onActivate={handleActivate}
                                     onDeactivate={handleDeactivate}
@@ -231,7 +276,7 @@ export function AdminUsersPage() {
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    disabled={page <= 1 || usersQuery.isFetching}
+                                    disabled={page <= DEFAULT_PAGE || usersQuery.isFetching}
                                     onClick={() => goToPage(page - 1)}
                                 >
                                     Anterior
@@ -253,9 +298,8 @@ export function AdminUsersPage() {
                     <div className="flex gap-3">
                         <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                         <p>
-                            Por segurança visual, edição completa de usuário fica para refinamento.
-                            Este bloco já cobre criação, ativar/desativar, reset de senha e
-                            revogação de sessões.
+                            Use as ações administrativas somente quando necessário. Alterações de
+                            status, senha e sessões podem afetar imediatamente o acesso do usuário.
                         </p>
                     </div>
                 </div>

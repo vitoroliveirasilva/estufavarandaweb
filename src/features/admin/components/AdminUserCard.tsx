@@ -1,13 +1,6 @@
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import {
-    KeyRound,
-    Power,
-    RotateCcw,
-    ShieldCheck,
-    User,
-    UserCog
-} from "lucide-react";
+import { KeyRound, Power, RotateCcw, ShieldCheck, User } from "lucide-react";
 
 import type { AdminUser } from "@/features/admin/types/adminTypes";
 import { StatusBadge } from "@/shared/components/StatusBadge";
@@ -21,6 +14,7 @@ import {
 
 type AdminUserCardProps = {
     user: AdminUser;
+    isCurrentUser?: boolean;
     isMutating?: boolean;
     onActivate: (userId: number) => void;
     onDeactivate: (userId: number) => void;
@@ -36,7 +30,7 @@ function formatDateTime(value?: string | null): string {
     const date = new Date(value);
 
     if (Number.isNaN(date.getTime())) {
-        return value;
+        return "Data inválida";
     }
 
     return format(date, "dd/MM/yyyy HH:mm", {
@@ -44,38 +38,52 @@ function formatDateTime(value?: string | null): string {
     });
 }
 
+function displayText(value: string | null | undefined, fallback: string): string {
+    const trimmed = value?.trim();
+    return trimmed ? trimmed : fallback;
+}
+
 export function AdminUserCard({
     user,
+    isCurrentUser = false,
     isMutating = false,
     onActivate,
     onDeactivate,
     onResetPassword,
     onRevokeSessions
 }: AdminUserCardProps) {
+    const displayName = displayText(user.name, "Usuário sem nome");
+    const displayEmail = displayText(user.email, "E-mail não informado");
+    const cannotMutateCurrentUser = isCurrentUser && user.is_active;
+    const currentUserTitle = "Não é permitido executar esta ação no seu próprio usuário.";
+
     return (
         <Card>
             <CardHeader>
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="flex gap-4">
+                    <div className="flex min-w-0 gap-4">
                         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-secondary text-primary">
                             {user.is_admin ? (
-                                <ShieldCheck className="h-5 w-5" />
+                                <ShieldCheck className="h-5 w-5" aria-hidden="true" />
                             ) : (
-                                <User className="h-5 w-5" />
+                                <User className="h-5 w-5" aria-hidden="true" />
                             )}
                         </div>
 
-                        <div>
-                            <CardTitle className="text-base">{user.name}</CardTitle>
-                            <p className="mt-1 text-sm text-muted-foreground">{user.email}</p>
+                        <div className="min-w-0">
+                            <CardTitle className="break-words text-base">{displayName}</CardTitle>
+                            <p className="mt-1 break-all text-sm text-muted-foreground">
+                                {displayEmail}
+                            </p>
                         </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex shrink-0 flex-wrap gap-2">
                         <StatusBadge tone={user.is_active ? "success" : "danger"}>
                             {user.is_active ? "Ativo" : "Inativo"}
                         </StatusBadge>
                         {user.is_admin ? <StatusBadge tone="info">Admin</StatusBadge> : null}
+                        {isCurrentUser ? <StatusBadge tone="info">Você</StatusBadge> : null}
                     </div>
                 </div>
             </CardHeader>
@@ -96,10 +104,12 @@ export function AdminUserCard({
                             type="button"
                             variant="outline"
                             size="sm"
-                            disabled={isMutating}
+                            disabled={isMutating || cannotMutateCurrentUser}
+                            title={cannotMutateCurrentUser ? currentUserTitle : undefined}
+                            aria-label={`Desativar usuário ${displayName}`}
                             onClick={() => onDeactivate(user.id)}
                         >
-                            <Power className="mr-2 h-4 w-4" />
+                            <Power className="mr-2 h-4 w-4" aria-hidden="true" />
                             Desativar
                         </Button>
                     ) : (
@@ -108,9 +118,10 @@ export function AdminUserCard({
                             variant="outline"
                             size="sm"
                             disabled={isMutating}
+                            aria-label={`Ativar usuário ${displayName}`}
                             onClick={() => onActivate(user.id)}
                         >
-                            <Power className="mr-2 h-4 w-4" />
+                            <Power className="mr-2 h-4 w-4" aria-hidden="true" />
                             Ativar
                         </Button>
                     )}
@@ -120,9 +131,10 @@ export function AdminUserCard({
                         variant="outline"
                         size="sm"
                         disabled={isMutating}
+                        aria-label={`Resetar senha do usuário ${displayName}`}
                         onClick={() => onResetPassword(user.id)}
                     >
-                        <KeyRound className="mr-2 h-4 w-4" />
+                        <KeyRound className="mr-2 h-4 w-4" aria-hidden="true" />
                         Resetar senha
                     </Button>
 
@@ -130,16 +142,13 @@ export function AdminUserCard({
                         type="button"
                         variant="outline"
                         size="sm"
-                        disabled={isMutating}
+                        disabled={isMutating || cannotMutateCurrentUser}
+                        title={cannotMutateCurrentUser ? currentUserTitle : undefined}
+                        aria-label={`Revogar sessões do usuário ${displayName}`}
                         onClick={() => onRevokeSessions(user.id)}
                     >
-                        <RotateCcw className="mr-2 h-4 w-4" />
+                        <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" />
                         Revogar sessões
-                    </Button>
-
-                    <Button type="button" variant="ghost" size="sm" disabled>
-                        <UserCog className="mr-2 h-4 w-4" />
-                        Editar no próximo refinamento
                     </Button>
                 </div>
             </CardContent>
