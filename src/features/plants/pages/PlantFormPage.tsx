@@ -107,17 +107,12 @@ export function PlantFormPage({ mode }: PlantFormPageProps) {
     }
 
     const title = isEdit ? "Editar planta" : "Cadastrar planta";
-    const description = isEdit
-        ? "Atualize os dados da planta usando PATCH /plants/{plantId}."
-        : "Crie uma nova planta usando POST /plants.";
     const cancelPath = isEdit ? `/app/plants/${parsedPlantId ?? ""}` : "/app/plants";
 
     return (
         <>
             <PageHeader
-                eyebrow={isEdit ? "Editar" : "Nova planta"}
                 title={title}
-                description={description}
                 actions={
                     <Button asChild variant="outline">
                         <Link to={cancelPath}>
