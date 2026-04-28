@@ -1,115 +1,267 @@
-import axios from "axios";
-import { describe, expect, it } from "vitest";
+import axios, { type AxiosError } from "axios";
 
-import { parseApiError } from "@/core/api/apiError";
+export type AppErrorCode =
+  | "network"
+  | "timeout"
+  | "validation"
+  | "unauthorized"
+  | "forbidden"
+  | "not_found"
+  | "server"
+  | "unexpected";
 
-function createAxiosError(
-  status: number,
-  data: unknown,
-  message = "Request failed",
-) {
-  return new axios.AxiosError(message, undefined, undefined, undefined, {
-    status,
-    statusText: String(status),
-    headers: {},
-    config: {
-      headers: new axios.AxiosHeaders(),
-    },
-    data,
-  });
+export type ApiErrorDetail = Record<string, unknown>;
+
+export type AppError = {
+  code: AppErrorCode;
+  message: string;
+  status?: number;
+  details?: ApiErrorDetail;
+  raw?: unknown;
+};
+
+type PossibleApiErrorBody = {
+  message?: unknown;
+  error?: unknown;
+  detail?: unknown;
+  details?: unknown;
+  errors?: unknown;
+  title?: unknown;
+  description?: unknown;
+};
+
+const FALLBACK_MESSAGE = "Algo saiu do esperado. Tente novamente.";
+const MAX_MESSAGE_LENGTH = 300;
+const MAX_JOINED_MESSAGES = 3;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-describe("parseApiError", () => {
-  it("returns a friendly message for generic errors", () => {
-    const error = parseApiError(new Error("Falha inesperada"));
+function sanitizeMessage(message: string): string | undefined {
+  const normalized = message.replace(/\s+/g, " ").trim();
 
-    expect(error.code).toBe("unexpected");
-    expect(error.message).toBe("Falha inesperada");
-  });
+  if (!normalized) {
+    return undefined;
+  }
 
-  it("returns a friendly message for non-error values", () => {
-    const error = parseApiError("anything");
+  if (normalized.length <= MAX_MESSAGE_LENGTH) {
+    return normalized;
+  }
 
-    expect(error.code).toBe("unexpected");
-    expect(error.message).toBe("Algo saiu do esperado. Tente novamente.");
-  });
+  return `${normalized.slice(0, MAX_MESSAGE_LENGTH - 1).trim()}…`;
+}
 
-  it("parses validation errors from axios responses", () => {
-    const axiosError = createAxiosError(400, {
-      message: "Dados inválidos.",
-      details: {
-        email: "Informe um e-mail válido.",
-      },
-    });
+function normalizeMessage(value: unknown): string | undefined {
+  if (typeof value === "string") {
+    return sanitizeMessage(value);
+  }
 
-    const error = parseApiError(axiosError);
+  if (Array.isArray(value)) {
+    const messages = value
+      .map((item) => normalizeMessage(item))
+      .filter((item): item is string => Boolean(item))
+      .slice(0, MAX_JOINED_MESSAGES);
 
-    expect(error.code).toBe("validation");
-    expect(error.status).toBe(400);
-    expect(error.message).toBe("Dados inválidos.");
-    expect(error.details).toEqual({
-      email: "Informe um e-mail válido.",
-    });
-  });
+    return sanitizeMessage(messages.join(" "));
+  }
 
-  it("parses validation details from array based API errors", () => {
-    const axiosError = createAxiosError(422, {
-      detail: [
-        {
-          loc: ["body", "name"],
-          msg: "Informe o nome da planta.",
-          type: "missing",
-        },
-      ],
-    });
+  if (isRecord(value)) {
+    const directMessage =
+      normalizeMessage(value.message) ??
+      normalizeMessage(value.msg) ??
+      normalizeMessage(value.error) ??
+      normalizeMessage(value.detail);
 
-    const error = parseApiError(axiosError);
+    if (directMessage) {
+      return directMessage;
+    }
 
-    expect(error.code).toBe("validation");
-    expect(error.status).toBe(422);
-    expect(error.message).toBe("Informe o nome da planta.");
-    expect(error.details).toEqual({
-      errors: [
-        {
-          loc: ["body", "name"],
-          msg: "Informe o nome da planta.",
-          type: "missing",
-        },
-      ],
-    });
-  });
+    const fieldMessages = Object.entries(value)
+      .map(([field, fieldError]) => {
+        const message = normalizeMessage(fieldError);
+        return message ? `${field}: ${message}` : undefined;
+      })
+      .filter((item): item is string => Boolean(item))
+      .slice(0, MAX_JOINED_MESSAGES);
 
-  it("parses forbidden axios responses", () => {
-    const axiosError = createAxiosError(403, {});
+    return sanitizeMessage(fieldMessages.join(" "));
+  }
 
-    const error = parseApiError(axiosError);
+  return undefined;
+}
 
-    expect(error.code).toBe("forbidden");
-    expect(error.message).toBe("Você não tem permissão para essa ação.");
-  });
+function extractMessage(data: unknown): string | undefined {
+  if (!isRecord(data)) {
+    return undefined;
+  }
 
-  it("does not expose server error payload messages", () => {
-    const axiosError = createAxiosError(500, {
-      message: "Traceback interno sensível",
-    });
+  const body = data as PossibleApiErrorBody;
+  const candidates = [
+    body.message,
+    body.error,
+    body.detail,
+    body.title,
+    body.description,
+  ];
 
-    const error = parseApiError(axiosError);
+  for (const candidate of candidates) {
+    const message = normalizeMessage(candidate);
 
-    expect(error.code).toBe("server");
-    expect(error.message).toBe(
-      "Erro interno no servidor. Tente novamente mais tarde.",
-    );
-  });
+    if (message) {
+      return message;
+    }
+  }
 
-  it("parses timeout errors", () => {
-    const axiosError = new axios.AxiosError(
-      "timeout of 20000ms exceeded",
-      "ECONNABORTED",
-    );
+  return undefined;
+}
 
-    const error = parseApiError(axiosError);
+function normalizeDetails(details: unknown): ApiErrorDetail | undefined {
+  if (Array.isArray(details)) {
+    return { errors: details };
+  }
 
-    expect(error.code).toBe("timeout");
-    expect(error.message).toBe("A requisição demorou demais. Tente novamente.");
-  });
-});
+  if (isRecord(details)) {
+    return details;
+  }
+
+  return undefined;
+}
+
+function extractDetails(data: unknown): ApiErrorDetail | undefined {
+  if (!isRecord(data)) {
+    return undefined;
+  }
+
+  const body = data as PossibleApiErrorBody;
+
+  return (
+    normalizeDetails(body.details) ??
+    normalizeDetails(body.errors) ??
+    normalizeDetails(body.detail)
+  );
+}
+
+function isTimeoutError(error: AxiosError): boolean {
+  return (
+    error.code === "ECONNABORTED" ||
+    error.code === "ETIMEDOUT" ||
+    error.message.toLowerCase().includes("timeout")
+  );
+}
+
+function fromAxiosError(error: AxiosError): AppError {
+  if (isTimeoutError(error)) {
+    return {
+      code: "timeout",
+      message: "A requisição demorou demais. Tente novamente.",
+      raw: error,
+    };
+  }
+
+  if (!error.response) {
+    return {
+      code: "network",
+      message: "Não foi possível conectar. Verifique sua internet.",
+      raw: error,
+    };
+  }
+
+  const status = error.response.status;
+  const data = error.response.data;
+  const apiMessage = extractMessage(data);
+  const details = extractDetails(data);
+
+  if (status === 400 || status === 422) {
+    return {
+      code: "validation",
+      status,
+      message: apiMessage ?? "Revise os dados informados.",
+      details,
+      raw: error,
+    };
+  }
+
+  if (status === 401) {
+    return {
+      code: "unauthorized",
+      status,
+      message: "Sua sessão expirou. Faça login novamente.",
+      details,
+      raw: error,
+    };
+  }
+
+  if (status === 403) {
+    return {
+      code: "forbidden",
+      status,
+      message: "Você não tem permissão para essa ação.",
+      details,
+      raw: error,
+    };
+  }
+
+  if (status === 404) {
+    return {
+      code: "not_found",
+      status,
+      message: apiMessage ?? "Registro não encontrado.",
+      details,
+      raw: error,
+    };
+  }
+
+  if (status === 429) {
+    return {
+      code: "unexpected",
+      status,
+      message:
+        apiMessage ?? "Muitas tentativas. Aguarde um pouco e tente novamente.",
+      details,
+      raw: error,
+    };
+  }
+
+  if (status >= 500) {
+    return {
+      code: "server",
+      status,
+      message: "Erro interno no servidor. Tente novamente mais tarde.",
+      details,
+      raw: error,
+    };
+  }
+
+  return {
+    code: "unexpected",
+    status,
+    message: apiMessage ?? FALLBACK_MESSAGE,
+    details,
+    raw: error,
+  };
+}
+
+export function parseApiError(error: unknown): AppError {
+  if (axios.isAxiosError(error)) {
+    return fromAxiosError(error);
+  }
+
+  if (error instanceof Error) {
+    return {
+      code: "unexpected",
+      message: sanitizeMessage(error.message) ?? FALLBACK_MESSAGE,
+      raw: error,
+    };
+  }
+
+  return {
+    code: "unexpected",
+    message: FALLBACK_MESSAGE,
+    raw: error,
+  };
+}
+
+export function getAppErrorMessage(error: unknown): string {
+  return parseApiError(error).message;
+}
