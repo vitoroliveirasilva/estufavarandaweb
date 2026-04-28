@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
+    ChevronDown,
     FileText,
     HeartPulse,
     Leaf,
@@ -11,7 +12,7 @@ import {
     Tag,
     Wind
 } from "lucide-react";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 
 import {
@@ -40,6 +41,15 @@ type PlantFormProps = {
 type SelectOption = {
     value: string;
     label: string;
+};
+
+type CustomSelectProps = {
+    id: string;
+    value?: string;
+    options: readonly SelectOption[];
+    disabled?: boolean;
+    icon: ReactNode;
+    onChange: (value: string) => void;
 };
 
 const healthStatusOptions = [
@@ -85,9 +95,6 @@ const labelClassName = "text-sm font-medium text-foreground";
 const fieldControlClassName =
     "h-full min-w-0 flex-1 border-0 bg-transparent px-0 py-0 text-sm text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-70";
 
-const selectControlClassName =
-    "h-full min-w-0 flex-1 border-0 bg-transparent py-0 pl-0 pr-4 text-sm text-foreground outline-none disabled:cursor-not-allowed disabled:opacity-70";
-
 const textareaClassName =
     "min-h-36 w-full resize-y rounded-2xl border border-input bg-background px-4 py-3 text-sm leading-7 text-foreground shadow-sm outline-none transition-colors placeholder:text-muted-foreground hover:border-primary/40 focus:border-primary/60 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-70";
 
@@ -110,17 +117,9 @@ function getSelectOptions(
     ];
 }
 
-function renderOptions(options: readonly SelectOption[]) {
-    return options.map((option) => (
-        <option key={option.value || "empty"} value={option.value}>
-            {option.label}
-        </option>
-    ));
-}
-
 function SectionIcon({ children }: { children: ReactNode }) {
     return (
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-primary/15 bg-primary/10 text-primary">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-primary/15 bg-transparent text-primary">
             {children}
         </div>
     );
@@ -128,7 +127,7 @@ function SectionIcon({ children }: { children: ReactNode }) {
 
 function FieldShell({ children }: { children: ReactNode }) {
     return (
-        <div className="group relative z-10 flex h-11 w-full items-center rounded-2xl border border-input bg-transparent px-3 shadow-sm transition-colors hover:border-primary/40 focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/15">
+        <div className="group relative flex h-11 w-full items-center rounded-2xl border border-input bg-background px-3 shadow-sm transition-colors hover:border-primary/40 focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/15">
             {children}
         </div>
     );
@@ -138,6 +137,121 @@ function FieldIcon({ children }: { children: ReactNode }) {
     return (
         <div className="mr-3 flex h-full w-5 shrink-0 items-center justify-center text-muted-foreground transition-colors group-focus-within:text-primary">
             {children}
+        </div>
+    );
+}
+
+function CustomSelect({
+    id,
+    value,
+    options,
+    disabled = false,
+    icon,
+    onChange
+}: CustomSelectProps) {
+    const [isOpen, setIsOpen] = useState(false);
+    const wrapperRef = useRef<HTMLDivElement | null>(null);
+
+    const normalizedValue = value?.trim() ?? "";
+    const selectedOption =
+        options.find((option) => option.value === normalizedValue) ?? options[0];
+
+    useEffect(() => {
+        if (!isOpen) {
+            return;
+        }
+
+        function handleClickOutside(event: MouseEvent) {
+            if (
+                wrapperRef.current &&
+                !wrapperRef.current.contains(event.target as Node)
+            ) {
+                setIsOpen(false);
+            }
+        }
+
+        document.addEventListener("mousedown", handleClickOutside);
+
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, [isOpen]);
+
+    function handleToggle() {
+        if (disabled) {
+            return;
+        }
+
+        setIsOpen((current) => !current);
+    }
+
+    function handleSelect(nextValue: string) {
+        onChange(nextValue);
+        setIsOpen(false);
+    }
+
+    return (
+        <div ref={wrapperRef} className="relative">
+            <FieldShell>
+                <FieldIcon>{icon}</FieldIcon>
+
+                <button
+                    id={id}
+                    type="button"
+                    disabled={disabled}
+                    aria-haspopup="listbox"
+                    aria-expanded={isOpen}
+                    className="flex h-full min-w-0 flex-1 items-center justify-between gap-3 border-0 bg-transparent py-0 pl-0 pr-8 text-left text-sm text-foreground outline-none disabled:cursor-not-allowed disabled:opacity-70"
+                    onClick={handleToggle}
+                    onKeyDown={(event) => {
+                        if (event.key === "Escape") {
+                            setIsOpen(false);
+                        }
+
+                        if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            handleToggle();
+                        }
+                    }}
+                >
+                    <span className="min-w-0 truncate">
+                        {selectedOption?.label ?? "Não informar"}
+                    </span>
+                </button>
+
+                <ChevronDown
+                    className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition ${isOpen ? "rotate-180 text-primary" : ""
+                        }`}
+                />
+            </FieldShell>
+
+            {isOpen ? (
+                <div
+                    role="listbox"
+                    aria-labelledby={id}
+                    className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-50 overflow-hidden rounded-2xl border border-border/80 bg-popover p-1 text-popover-foreground shadow-xl"
+                >
+                    {options.map((option) => {
+                        const isSelected = option.value === normalizedValue;
+
+                        return (
+                            <button
+                                key={option.value || "empty"}
+                                type="button"
+                                role="option"
+                                aria-selected={isSelected}
+                                className={`flex w-full items-center rounded-md px-4 py-2.5 text-left text-sm transition-colors ${isSelected
+                                    ? "bg-muted/60 font-medium text-primary"
+                                    : "text-foreground hover:bg-muted/40 hover:text-primary"
+                                    }`}
+                                onClick={() => handleSelect(option.value)}
+                            >
+                                {option.label}
+                            </button>
+                        );
+                    })}
+                </div>
+            ) : null}
         </div>
     );
 }
@@ -168,6 +282,14 @@ export function PlantForm({
     const handleSubmit = form.handleSubmit(async (values) => {
         await onSubmit(values);
     });
+
+    function updateFormValue(field: keyof PlantFormValues, value: string) {
+        form.setValue(field, value, {
+            shouldDirty: true,
+            shouldTouch: true,
+            shouldValidate: true
+        });
+    }
 
     return (
         <form className="space-y-5" onSubmit={handleSubmit} noValidate>
@@ -221,7 +343,9 @@ export function PlantForm({
                             />
                         </FieldShell>
 
-                        <FormErrorMessage message={form.formState.errors.name?.message} />
+                        <FormErrorMessage
+                            message={form.formState.errors.name?.message}
+                        />
                     </div>
 
                     <div className="space-y-2">
@@ -246,7 +370,9 @@ export function PlantForm({
                             />
                         </FieldShell>
 
-                        <FormErrorMessage message={form.formState.errors.nickname?.message} />
+                        <FormErrorMessage
+                            message={form.formState.errors.nickname?.message}
+                        />
                     </div>
 
                     <div className="space-y-2">
@@ -254,24 +380,25 @@ export function PlantForm({
                             Status de saúde
                         </Label>
 
-                        <FieldShell>
-                            <FieldIcon>
-                                <HeartPulse className="h-4 w-4" />
-                            </FieldIcon>
+                        <input type="hidden" {...form.register("health_status")} />
 
-                            <select
-                                id="health_status"
-                                disabled={disabled}
-                                className={selectControlClassName}
-                                {...form.register("health_status")}
-                            >
-                                {renderOptions(
-                                    getSelectOptions(healthStatusOptions, currentHealthStatus)
-                                )}
-                            </select>
-                        </FieldShell>
+                        <CustomSelect
+                            id="health_status"
+                            disabled={disabled}
+                            value={currentHealthStatus}
+                            icon={<HeartPulse className="h-4 w-4" />}
+                            options={getSelectOptions(
+                                healthStatusOptions,
+                                currentHealthStatus
+                            )}
+                            onChange={(value) =>
+                                updateFormValue("health_status", value)
+                            }
+                        />
 
-                        <FormErrorMessage message={form.formState.errors.health_status?.message} />
+                        <FormErrorMessage
+                            message={form.formState.errors.health_status?.message}
+                        />
                     </div>
                 </CardContent>
             </Card>
@@ -300,24 +427,25 @@ export function PlantForm({
                             Ambiente
                         </Label>
 
-                        <FieldShell>
-                            <FieldIcon>
-                                <MapPin className="h-4 w-4" />
-                            </FieldIcon>
+                        <input type="hidden" {...form.register("environment")} />
 
-                            <select
-                                id="environment"
-                                disabled={disabled}
-                                className={selectControlClassName}
-                                {...form.register("environment")}
-                            >
-                                {renderOptions(
-                                    getSelectOptions(environmentOptions, currentEnvironment)
-                                )}
-                            </select>
-                        </FieldShell>
+                        <CustomSelect
+                            id="environment"
+                            disabled={disabled}
+                            value={currentEnvironment}
+                            icon={<MapPin className="h-4 w-4" />}
+                            options={getSelectOptions(
+                                environmentOptions,
+                                currentEnvironment
+                            )}
+                            onChange={(value) =>
+                                updateFormValue("environment", value)
+                            }
+                        />
 
-                        <FormErrorMessage message={form.formState.errors.environment?.message} />
+                        <FormErrorMessage
+                            message={form.formState.errors.environment?.message}
+                        />
                     </div>
 
                     <div className="space-y-2">
@@ -325,24 +453,25 @@ export function PlantForm({
                             Exposição de luz
                         </Label>
 
-                        <FieldShell>
-                            <FieldIcon>
-                                <SunMedium className="h-4 w-4" />
-                            </FieldIcon>
+                        <input type="hidden" {...form.register("light_exposure")} />
 
-                            <select
-                                id="light_exposure"
-                                disabled={disabled}
-                                className={selectControlClassName}
-                                {...form.register("light_exposure")}
-                            >
-                                {renderOptions(
-                                    getSelectOptions(lightExposureOptions, currentLightExposure)
-                                )}
-                            </select>
-                        </FieldShell>
+                        <CustomSelect
+                            id="light_exposure"
+                            disabled={disabled}
+                            value={currentLightExposure}
+                            icon={<SunMedium className="h-4 w-4" />}
+                            options={getSelectOptions(
+                                lightExposureOptions,
+                                currentLightExposure
+                            )}
+                            onChange={(value) =>
+                                updateFormValue("light_exposure", value)
+                            }
+                        />
 
-                        <FormErrorMessage message={form.formState.errors.light_exposure?.message} />
+                        <FormErrorMessage
+                            message={form.formState.errors.light_exposure?.message}
+                        />
                     </div>
 
                     <div className="space-y-2">
@@ -350,24 +479,25 @@ export function PlantForm({
                             Ventilação
                         </Label>
 
-                        <FieldShell>
-                            <FieldIcon>
-                                <Wind className="h-4 w-4" />
-                            </FieldIcon>
+                        <input type="hidden" {...form.register("ventilation")} />
 
-                            <select
-                                id="ventilation"
-                                disabled={disabled}
-                                className={selectControlClassName}
-                                {...form.register("ventilation")}
-                            >
-                                {renderOptions(
-                                    getSelectOptions(ventilationOptions, currentVentilation)
-                                )}
-                            </select>
-                        </FieldShell>
+                        <CustomSelect
+                            id="ventilation"
+                            disabled={disabled}
+                            value={currentVentilation}
+                            icon={<Wind className="h-4 w-4" />}
+                            options={getSelectOptions(
+                                ventilationOptions,
+                                currentVentilation
+                            )}
+                            onChange={(value) =>
+                                updateFormValue("ventilation", value)
+                            }
+                        />
 
-                        <FormErrorMessage message={form.formState.errors.ventilation?.message} />
+                        <FormErrorMessage
+                            message={form.formState.errors.ventilation?.message}
+                        />
                     </div>
 
                     <div className="space-y-2">
@@ -392,7 +522,9 @@ export function PlantForm({
                             />
                         </FieldShell>
 
-                        <FormErrorMessage message={form.formState.errors.location_label?.message} />
+                        <FormErrorMessage
+                            message={form.formState.errors.location_label?.message}
+                        />
                     </div>
 
                     <div className="space-y-2 md:col-span-2">
@@ -417,7 +549,9 @@ export function PlantForm({
                             />
                         </FieldShell>
 
-                        <FormErrorMessage message={form.formState.errors.city_name?.message} />
+                        <FormErrorMessage
+                            message={form.formState.errors.city_name?.message}
+                        />
                     </div>
                 </CardContent>
             </Card>
@@ -453,7 +587,9 @@ export function PlantForm({
                         {...form.register("notes")}
                     />
 
-                    <FormErrorMessage message={form.formState.errors.notes?.message} />
+                    <FormErrorMessage
+                        message={form.formState.errors.notes?.message}
+                    />
                 </CardContent>
             </Card>
 
