@@ -1,4 +1,4 @@
-import { Archive, Loader2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { getAppErrorMessage } from "@/core/api/apiError";
@@ -24,17 +24,17 @@ export function ArchivePlantButton({
     archivedAt
 }: ArchivePlantButtonProps) {
     const navigate = useNavigate();
-    const archiveMutation = useArchivePlantMutation(plantId);
-    const isArchived = Boolean(archivedAt);
-    const canArchive = Number.isInteger(plantId) && plantId > 0 && !isArchived;
+    const deleteMutation = useArchivePlantMutation(plantId);
+    const isDeleted = Boolean(archivedAt);
+    const canDelete = Number.isInteger(plantId) && plantId > 0 && !isDeleted;
 
-    async function handleArchive() {
-        if (!canArchive || archiveMutation.isPending) {
+    async function handleDelete() {
+        if (!canDelete || deleteMutation.isPending) {
             return;
         }
 
         const confirmed = window.confirm(
-            `Arquivar "${plantName}"? Ela deixará de aparecer na listagem principal.`
+            `Excluir "${plantName}"? Esta planta deixará de aparecer na listagem principal.`
         );
 
         if (!confirmed) {
@@ -42,7 +42,7 @@ export function ArchivePlantButton({
         }
 
         try {
-            await archiveMutation.mutateAsync();
+            await deleteMutation.mutateAsync();
             navigate("/app/plants", { replace: true });
         } catch {
             // A mensagem é exibida abaixo.
@@ -52,37 +52,37 @@ export function ArchivePlantButton({
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Zona de arquivamento</CardTitle>
+                <CardTitle>Zona de exclusão</CardTitle>
                 <CardDescription>
-                    Arquivar usa DELETE /plants/{"{plantId}"} e mantém a semântica da API.
+                    Exclua a planta para removê-la da listagem principal.
                 </CardDescription>
             </CardHeader>
 
             <CardContent className="space-y-4">
-                {archiveMutation.error ? (
+                {deleteMutation.error ? (
                     <div
                         className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
                         role="alert"
                     >
-                        {getAppErrorMessage(archiveMutation.error)}
+                        {getAppErrorMessage(deleteMutation.error)}
                     </div>
                 ) : null}
 
                 <Button
                     type="button"
                     variant="destructive"
-                    disabled={!canArchive || archiveMutation.isPending}
-                    onClick={handleArchive}
+                    disabled={!canDelete || deleteMutation.isPending}
+                    onClick={handleDelete}
                 >
-                    {archiveMutation.isPending ? (
+                    {deleteMutation.isPending ? (
                         <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Arquivando
+                            Excluindo
                         </>
                     ) : (
                         <>
-                            <Archive className="mr-2 h-4 w-4" />
-                            {isArchived ? "Planta arquivada" : "Arquivar planta"}
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            {isDeleted ? "Planta excluída" : "Excluir planta"}
                         </>
                     )}
                 </Button>
