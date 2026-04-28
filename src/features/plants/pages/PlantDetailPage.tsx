@@ -1,4 +1,4 @@
-import { ArrowLeft, Pencil } from "lucide-react";
+import { ArrowLeft, Pencil, RefreshCw } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
 import { getAppErrorMessage } from "@/core/api/apiError";
@@ -37,18 +37,33 @@ export function PlantDetailPage() {
     const plant = plantQuery.data;
 
     return (
-        <>
+        <div className="space-y-6">
             <PageHeader
-                eyebrow="Detalhe"
+                eyebrow="Detalhe da planta"
                 title={plant?.name ?? "Detalhe da planta"}
-                description="Dados detalhados da planta e atalhos para cuidados relacionados."
                 actions={
-                    <>
+                    <div className="flex flex-wrap items-center gap-2">
                         <Button asChild variant="outline">
                             <Link to="/app/plants">
                                 <ArrowLeft className="mr-2 h-4 w-4" />
                                 Voltar
                             </Link>
+                        </Button>
+
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={plantQuery.isFetching}
+                            onClick={() => void plantQuery.refetch()}
+                        >
+                            <RefreshCw
+                                className={
+                                    plantQuery.isFetching
+                                        ? "mr-2 h-4 w-4 animate-spin"
+                                        : "mr-2 h-4 w-4"
+                                }
+                            />
+                            Atualizar
                         </Button>
 
                         <Button asChild>
@@ -57,41 +72,37 @@ export function PlantDetailPage() {
                                 Editar
                             </Link>
                         </Button>
-                    </>
+                    </div>
                 }
             />
 
-            <div className="space-y-5">
-                {plantQuery.isLoading ? (
-                    <LoadingState
-                        title="Carregando planta"
-                        description="Buscando detalhes atualizados na API."
+            {plantQuery.isLoading ? (
+                <LoadingState
+                    title="Carregando planta"
+                    description="Buscando detalhes atualizados na API."
+                />
+            ) : null}
+
+            {plantQuery.isError ? (
+                <ErrorState
+                    title="Não foi possível carregar a planta"
+                    description={getAppErrorMessage(plantQuery.error)}
+                    actionLabel="Tentar novamente"
+                    onAction={() => void plantQuery.refetch()}
+                />
+            ) : null}
+
+            {plant ? (
+                <div className="space-y-5">
+                    <PlantDetailSummary plant={plant} />
+                    <PlantQuickLinks plantId={parsedPlantId} />
+                    <ArchivePlantButton
+                        plantId={parsedPlantId}
+                        plantName={plant.name}
+                        archivedAt={plant.archived_at}
                     />
-                ) : null}
-
-                {plantQuery.isError ? (
-                    <ErrorState
-                        title="Não foi possível carregar a planta"
-                        description={getAppErrorMessage(plantQuery.error)}
-                        actionLabel="Tentar novamente"
-                        onAction={() => void plantQuery.refetch()}
-                    />
-                ) : null}
-
-                {plant ? (
-                    <>
-                        <PlantDetailSummary plant={plant} />
-
-                        <PlantQuickLinks plantId={parsedPlantId} />
-
-                        <ArchivePlantButton
-                            plantId={parsedPlantId}
-                            plantName={plant.name}
-                            archivedAt={plant.archived_at}
-                        />
-                    </>
-                ) : null}
-            </div>
-        </>
+                </div>
+            ) : null}
+        </div>
     );
 }

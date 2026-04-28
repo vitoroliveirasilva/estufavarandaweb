@@ -5,7 +5,6 @@ import { Button } from "@/shared/components/ui/button";
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle
 } from "@/shared/components/ui/card";
@@ -17,7 +16,7 @@ type PlantQuickLinksProps = {
 const links = [
     {
         label: "Editar",
-        description: "Alterar dados cadastrais.",
+        description: "Alterar cadastro e preferências.",
         icon: Pencil,
         getPath: (plantId: number) => `/app/plants/${plantId}/edit`
     },
@@ -29,13 +28,13 @@ const links = [
     },
     {
         label: "Eventos",
-        description: "Cuidados e observações.",
+        description: "Cuidados, podas e observações.",
         icon: ListChecks,
         getPath: (plantId: number) => `/app/plants/${plantId}/events`
     },
     {
         label: "Fotos",
-        description: "Galeria e upload.",
+        description: "Galeria e evolução visual.",
         icon: Camera,
         getPath: (plantId: number) => `/app/plants/${plantId}/photos`
     },
@@ -57,16 +56,32 @@ export function PlantQuickLinks({ plantId }: PlantQuickLinksProps) {
     const isValidPlantId = Number.isInteger(plantId) && plantId > 0;
 
     return (
-        <Card>
+        <Card className="shadow-sm">
             <CardHeader>
-                <CardTitle>Atalhos da planta</CardTitle>
-                <CardDescription>Acesse os módulos vinculados a esta planta.</CardDescription>
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <CardTitle>Atalhos da planta</CardTitle>
+                    </div>
+                </div>
             </CardHeader>
 
             <CardContent>
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                     {links.map((link) => {
                         const Icon = link.icon;
+                        const content = (
+                            <>
+                                <span className="mr-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-secondary text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                                    <Icon className="h-5 w-5" />
+                                </span>
+                                <span className="min-w-0 text-left">
+                                    <span className="block truncate font-semibold">{link.label}</span>
+                                    <span className="mt-0.5 block break-words text-xs leading-5 text-muted-foreground">
+                                        {link.description}
+                                    </span>
+                                </span>
+                            </>
+                        );
 
                         return (
                             <Button
@@ -74,32 +89,12 @@ export function PlantQuickLinks({ plantId }: PlantQuickLinksProps) {
                                 asChild={isValidPlantId}
                                 variant="outline"
                                 disabled={!isValidPlantId}
-                                className="h-auto justify-start rounded-2xl p-4"
+                                className="group h-auto justify-start rounded-2xl border-border/70 bg-background p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-background hover:shadow-md"
                             >
                                 {isValidPlantId ? (
-                                    <Link to={link.getPath(plantId)}>
-                                        <span className="mr-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-secondary text-primary">
-                                            <Icon className="h-5 w-5" />
-                                        </span>
-                                        <span className="text-left">
-                                            <span className="block font-medium">{link.label}</span>
-                                            <span className="block text-xs text-muted-foreground">
-                                                {link.description}
-                                            </span>
-                                        </span>
-                                    </Link>
+                                    <Link to={link.getPath(plantId)}>{content}</Link>
                                 ) : (
-                                    <span className="flex items-center">
-                                        <span className="mr-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-secondary text-primary">
-                                            <Icon className="h-5 w-5" />
-                                        </span>
-                                        <span className="text-left">
-                                            <span className="block font-medium">{link.label}</span>
-                                            <span className="block text-xs text-muted-foreground">
-                                                {link.description}
-                                            </span>
-                                        </span>
-                                    </span>
+                                    <span className="flex items-center">{content}</span>
                                 )}
                             </Button>
                         );
