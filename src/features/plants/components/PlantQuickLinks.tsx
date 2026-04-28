@@ -51,16 +51,16 @@ const links = [
         icon: Bot,
         getPath: (plantId: number) => `/app/plants/${plantId}/ai`
     }
-];
+] as const;
 
 export function PlantQuickLinks({ plantId }: PlantQuickLinksProps) {
+    const isValidPlantId = Number.isInteger(plantId) && plantId > 0;
+
     return (
         <Card>
             <CardHeader>
                 <CardTitle>Atalhos da planta</CardTitle>
-                <CardDescription>
-                    Acesse os módulos vinculados a esta planta.
-                </CardDescription>
+                <CardDescription>Acesse os módulos vinculados a esta planta.</CardDescription>
             </CardHeader>
 
             <CardContent>
@@ -71,21 +71,36 @@ export function PlantQuickLinks({ plantId }: PlantQuickLinksProps) {
                         return (
                             <Button
                                 key={link.label}
-                                asChild
+                                asChild={isValidPlantId}
                                 variant="outline"
+                                disabled={!isValidPlantId}
                                 className="h-auto justify-start rounded-2xl p-4"
                             >
-                                <Link to={link.getPath(plantId)}>
-                                    <span className="mr-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-secondary text-primary">
-                                        <Icon className="h-5 w-5" />
-                                    </span>
-                                    <span className="text-left">
-                                        <span className="block font-medium">{link.label}</span>
-                                        <span className="block text-xs text-muted-foreground">
-                                            {link.description}
+                                {isValidPlantId ? (
+                                    <Link to={link.getPath(plantId)}>
+                                        <span className="mr-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-secondary text-primary">
+                                            <Icon className="h-5 w-5" />
+                                        </span>
+                                        <span className="text-left">
+                                            <span className="block font-medium">{link.label}</span>
+                                            <span className="block text-xs text-muted-foreground">
+                                                {link.description}
+                                            </span>
+                                        </span>
+                                    </Link>
+                                ) : (
+                                    <span className="flex items-center">
+                                        <span className="mr-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-secondary text-primary">
+                                            <Icon className="h-5 w-5" />
+                                        </span>
+                                        <span className="text-left">
+                                            <span className="block font-medium">{link.label}</span>
+                                            <span className="block text-xs text-muted-foreground">
+                                                {link.description}
+                                            </span>
                                         </span>
                                     </span>
-                                </Link>
+                                )}
                             </Button>
                         );
                     })}

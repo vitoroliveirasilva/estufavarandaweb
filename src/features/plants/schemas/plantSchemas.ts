@@ -1,16 +1,43 @@
 import { z } from "zod";
 
+const MAX_SHORT_TEXT_LENGTH = 120;
+const MAX_LOCATION_TEXT_LENGTH = 160;
+const MAX_NOTES_LENGTH = 2_000;
+
+const optionalText = (maxLength: number) =>
+  z.string().trim().max(maxLength, `Use no máximo ${maxLength} caracteres.`).optional();
+
 export const plantFormSchema = z.object({
-  name: z.string().trim().min(1, "Informe o nome da planta."),
-  nickname: z.string().trim().optional(),
-  environment: z.string().trim().optional(),
-  light_exposure: z.string().trim().optional(),
-  ventilation: z.string().trim().optional(),
-  location_label: z.string().trim().optional(),
-  city_name: z.string().trim().optional(),
-  notes: z.string().trim().optional(),
-  health_status: z.string().trim().optional(),
-  species_profile_id: z.string().trim().optional()
+  name: z
+    .string()
+    .trim()
+    .min(1, "Informe o nome da planta.")
+    .max(MAX_SHORT_TEXT_LENGTH, "Use no máximo 120 caracteres."),
+  nickname: optionalText(MAX_SHORT_TEXT_LENGTH),
+  environment: optionalText(MAX_SHORT_TEXT_LENGTH),
+  light_exposure: optionalText(MAX_SHORT_TEXT_LENGTH),
+  ventilation: optionalText(MAX_SHORT_TEXT_LENGTH),
+  location_label: optionalText(MAX_LOCATION_TEXT_LENGTH),
+  city_name: optionalText(MAX_LOCATION_TEXT_LENGTH),
+  notes: optionalText(MAX_NOTES_LENGTH),
+  health_status: optionalText(MAX_SHORT_TEXT_LENGTH),
+  species_profile_id: z
+    .string()
+    .trim()
+    .optional()
+    .refine(
+      (value) => {
+        if (!value) {
+          return true;
+        }
+
+        const parsed = Number(value);
+        return Number.isInteger(parsed) && parsed > 0;
+      },
+      {
+        message: "Informe um ID de espécie válido."
+      }
+    )
 });
 
 export type PlantFormValues = z.infer<typeof plantFormSchema>;

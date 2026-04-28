@@ -33,8 +33,9 @@ function formatDateTime(value?: string | null): string {
 }
 
 function valueOrFallback(value: unknown): string {
-    if (typeof value === "string" && value.trim()) {
-        return value;
+    if (typeof value === "string") {
+        const normalized = value.trim();
+        return normalized || "Não informado";
     }
 
     if (typeof value === "number" && Number.isFinite(value)) {
@@ -44,9 +45,14 @@ function valueOrFallback(value: unknown): string {
     return "Não informado";
 }
 
-export function PlantDetailSummary({ plant }: PlantDetailSummaryProps) {
-    const location = [plant.location_label, plant.city_name].filter(Boolean).join(" · ");
+function buildLocation(plant: PlantDetail): string {
+    return [plant.location_label, plant.city_name]
+        .map((value) => value?.trim())
+        .filter(Boolean)
+        .join(" · ") || "Local não informado";
+}
 
+export function PlantDetailSummary({ plant }: PlantDetailSummaryProps) {
     const details = [
         {
             label: "Apelido",
@@ -54,7 +60,7 @@ export function PlantDetailSummary({ plant }: PlantDetailSummaryProps) {
         },
         {
             label: "Espécie",
-            value: plant.species_profile?.common_name ?? "Não vinculada"
+            value: plant.species_profile?.common_name?.trim() || "Não vinculada"
         },
         {
             label: "Ambiente",
@@ -94,17 +100,17 @@ export function PlantDetailSummary({ plant }: PlantDetailSummaryProps) {
                         <PlantStatus status={plant.health_status} />
                     </div>
 
-                    <CardTitle className="text-2xl">{plant.name}</CardTitle>
+                    <CardTitle className="break-words text-2xl">{plant.name}</CardTitle>
                     <CardDescription className="flex items-center gap-2 pt-1">
-                        <MapPin className="h-4 w-4" />
-                        {location || "Local não informado"}
+                        <MapPin className="h-4 w-4 shrink-0" />
+                        <span className="break-words">{buildLocation(plant)}</span>
                     </CardDescription>
                 </CardHeader>
 
                 <CardContent>
                     <div className="rounded-2xl border bg-background p-4">
                         <p className="text-sm font-medium">Observações</p>
-                        <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+                        <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-muted-foreground">
                             {valueOrFallback(plant.notes)}
                         </p>
                     </div>
@@ -127,7 +133,7 @@ export function PlantDetailSummary({ plant }: PlantDetailSummaryProps) {
                                 className="flex items-start justify-between gap-4 rounded-xl border bg-background px-4 py-3"
                             >
                                 <dt className="text-sm text-muted-foreground">{detail.label}</dt>
-                                <dd className="max-w-[55%] text-right text-sm font-medium">
+                                <dd className="max-w-[55%] break-words text-right text-sm font-medium">
                                     {detail.value}
                                 </dd>
                             </div>

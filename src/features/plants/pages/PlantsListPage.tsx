@@ -15,13 +15,25 @@ import { LoadingState } from "@/shared/components/LoadingState";
 import { PageHeader } from "@/shared/components/PageHeader";
 import { Button } from "@/shared/components/ui/button";
 
-function parsePositiveInt(value: string | null, fallback: number): number {
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100;
+
+function parsePositiveInt(
+    value: string | null,
+    fallback: number,
+    max?: number
+): number {
     if (!value) {
         return fallback;
     }
 
     const parsed = Number(value);
-    return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+        return fallback;
+    }
+
+    return max ? Math.min(parsed, max) : parsed;
 }
 
 function parseBoolean(value: string | null): boolean {
@@ -30,8 +42,8 @@ function parseBoolean(value: string | null): boolean {
 
 function getFilters(searchParams: URLSearchParams): PlantFiltersValue {
     return {
-        search: searchParams.get("search") ?? "",
-        healthStatus: searchParams.get("health_status") ?? "",
+        search: searchParams.get("search")?.trim() ?? "",
+        healthStatus: searchParams.get("health_status")?.trim() ?? "",
         includeArchived: parseBoolean(searchParams.get("include_archived"))
     };
 }
@@ -41,7 +53,11 @@ export function PlantsListPage() {
     const [searchParams, setSearchParams] = useSearchParams();
 
     const page = parsePositiveInt(searchParams.get("page"), 1);
-    const pageSize = parsePositiveInt(searchParams.get("page_size"), 20);
+    const pageSize = parsePositiveInt(
+        searchParams.get("page_size"),
+        DEFAULT_PAGE_SIZE,
+        MAX_PAGE_SIZE
+    );
     const filters = getFilters(searchParams);
 
     const queryParams: PlantListParams = {
@@ -55,21 +71,24 @@ export function PlantsListPage() {
     const plantsQuery = usePlantsList(queryParams);
 
     const total = plantsQuery.data?.meta?.total ?? plantsQuery.data?.items.length ?? 0;
-    const totalPages = plantsQuery.data?.meta?.total_pages ?? Math.max(1, Math.ceil(total / pageSize));
+    const totalPages =
+        plantsQuery.data?.meta?.total_pages ?? Math.max(1, Math.ceil(total / pageSize));
     const hasItems = Boolean(plantsQuery.data?.items.length);
 
     function updateParams(nextFilters: PlantFiltersValue, nextPage = 1) {
         const next = new URLSearchParams();
+        const search = nextFilters.search.trim();
+        const healthStatus = nextFilters.healthStatus.trim();
 
         next.set("page", String(nextPage));
         next.set("page_size", String(pageSize));
 
-        if (nextFilters.search.trim()) {
-            next.set("search", nextFilters.search.trim());
+        if (search) {
+            next.set("search", search);
         }
 
-        if (nextFilters.healthStatus) {
-            next.set("health_status", nextFilters.healthStatus);
+        if (healthStatus) {
+            next.set("health_status", healthStatus);
         }
 
         if (nextFilters.includeArchived) {

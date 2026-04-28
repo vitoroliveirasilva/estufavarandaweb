@@ -26,8 +26,13 @@ export function ArchivePlantButton({
     const navigate = useNavigate();
     const archiveMutation = useArchivePlantMutation(plantId);
     const isArchived = Boolean(archivedAt);
+    const canArchive = Number.isInteger(plantId) && plantId > 0 && !isArchived;
 
     async function handleArchive() {
+        if (!canArchive || archiveMutation.isPending) {
+            return;
+        }
+
         const confirmed = window.confirm(
             `Arquivar "${plantName}"? Ela deixará de aparecer na listagem principal.`
         );
@@ -40,7 +45,7 @@ export function ArchivePlantButton({
             await archiveMutation.mutateAsync();
             navigate("/app/plants", { replace: true });
         } catch {
-            // Mensagem exibida abaixo.
+            // A mensagem é exibida abaixo.
         }
     }
 
@@ -55,7 +60,10 @@ export function ArchivePlantButton({
 
             <CardContent className="space-y-4">
                 {archiveMutation.error ? (
-                    <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                    <div
+                        className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+                        role="alert"
+                    >
                         {getAppErrorMessage(archiveMutation.error)}
                     </div>
                 ) : null}
@@ -63,7 +71,7 @@ export function ArchivePlantButton({
                 <Button
                     type="button"
                     variant="destructive"
-                    disabled={archiveMutation.isPending || isArchived}
+                    disabled={!canArchive || archiveMutation.isPending}
                     onClick={handleArchive}
                 >
                     {archiveMutation.isPending ? (

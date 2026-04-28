@@ -5,22 +5,21 @@ import {
   createPlant,
   getPlant,
   listPlants,
-  updatePlant,
+  updatePlant
 } from "@/features/plants/api/plantsApi";
 import type { PlantFormValues } from "@/features/plants/schemas/plantSchemas";
 import type {
   PlantCreatePayload,
   PlantListParams,
-  PlantUpdatePayload,
+  PlantUpdatePayload
 } from "@/features/plants/types/plantTypes";
 
 export const plantQueryKeys = {
   root: ["plants"] as const,
   lists: () => [...plantQueryKeys.root, "list"] as const,
-  list: (params: PlantListParams) =>
-    [...plantQueryKeys.lists(), params] as const,
+  list: (params: PlantListParams) => [...plantQueryKeys.lists(), params] as const,
   details: () => [...plantQueryKeys.root, "detail"] as const,
-  detail: (plantId: number) => [...plantQueryKeys.details(), plantId] as const,
+  detail: (plantId: number) => [...plantQueryKeys.details(), plantId] as const
 };
 
 function cleanString(value: string | undefined): string | undefined {
@@ -36,16 +35,19 @@ function cleanSpeciesProfileId(value: string | undefined): number | undefined {
   }
 
   const parsed = Number(normalized);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
 
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    return undefined;
+function assertValidPlantId(plantId: number): number {
+  if (!Number.isInteger(plantId) || plantId <= 0) {
+    throw new Error("ID da planta inválido.");
   }
 
-  return parsed;
+  return plantId;
 }
 
 export function normalizePlantFormValues(
-  values: PlantFormValues,
+  values: PlantFormValues
 ): PlantCreatePayload {
   return {
     name: values.name.trim(),
@@ -57,7 +59,7 @@ export function normalizePlantFormValues(
     city_name: cleanString(values.city_name),
     notes: cleanString(values.notes),
     health_status: cleanString(values.health_status),
-    species_profile_id: cleanSpeciesProfileId(values.species_profile_id),
+    species_profile_id: cleanSpeciesProfileId(values.species_profile_id)
   };
 }
 
@@ -65,22 +67,19 @@ export function usePlantsList(params: PlantListParams) {
   return useQuery({
     queryKey: plantQueryKeys.list(params),
     queryFn: () => listPlants(params),
+    enabled: params.page === undefined || params.page > 0
   });
 }
 
 export function usePlantDetail(plantId: number | null, enabled = true) {
-  return useQuery({
-    queryKey: plantId
-      ? plantQueryKeys.detail(plantId)
-      : plantQueryKeys.details(),
-    queryFn: () => {
-      if (!plantId) {
-        throw new Error("ID da planta inválido.");
-      }
+  const isValidPlantId = Number.isInteger(plantId) && Number(plantId) > 0;
 
-      return getPlant(plantId);
-    },
-    enabled: enabled && Boolean(plantId),
+  return useQuery({
+    queryKey: isValidPlantId
+      ? plantQueryKeys.detail(Number(plantId))
+      : plantQueryKeys.details(),
+    queryFn: () => getPlant(assertValidPlantId(Number(plantId))),
+    enabled: enabled && isValidPlantId
   });
 }
 
@@ -91,9 +90,9 @@ export function useCreatePlantMutation() {
     mutationFn: (payload: PlantCreatePayload) => createPlant(payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({
-        queryKey: plantQueryKeys.lists(),
+        queryKey: plantQueryKeys.lists()
       });
-    },
+    }
   });
 }
 
@@ -101,17 +100,20 @@ export function useUpdatePlantMutation(plantId: number) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: PlantUpdatePayload) => updatePlant(plantId, payload),
+    mutationFn: (payload: PlantUpdatePayload) =>
+      updatePlant(assertValidPlantId(plantId), payload),
     onSuccess: async () => {
+      const validPlantId = assertValidPlantId(plantId);
+
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: plantQueryKeys.lists(),
+          queryKey: plantQueryKeys.lists()
         }),
         queryClient.invalidateQueries({
-          queryKey: plantQueryKeys.detail(plantId),
-        }),
+          queryKey: plantQueryKeys.detail(validPlantId)
+        })
       ]);
-    },
+    }
   });
 }
 
@@ -119,16 +121,18 @@ export function useArchivePlantMutation(plantId: number) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => archivePlant(plantId),
+    mutationFn: () => archivePlant(assertValidPlantId(plantId)),
     onSuccess: async () => {
+      const validPlantId = assertValidPlantId(plantId);
+
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: plantQueryKeys.lists(),
+          queryKey: plantQueryKeys.lists()
         }),
         queryClient.invalidateQueries({
-          queryKey: plantQueryKeys.detail(plantId),
-        }),
+          queryKey: plantQueryKeys.detail(validPlantId)
+        })
       ]);
-    },
+    }
   });
 }

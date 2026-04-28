@@ -34,11 +34,13 @@ export function PlantDetailPage() {
         );
     }
 
+    const plant = plantQuery.data;
+
     return (
         <>
             <PageHeader
                 eyebrow="Detalhe"
-                title={plantQuery.data?.name ?? "Detalhe da planta"}
+                title={plant?.name ?? "Detalhe da planta"}
                 description="Dados detalhados da planta e atalhos para cuidados relacionados."
                 actions={
                     <>
@@ -59,35 +61,37 @@ export function PlantDetailPage() {
                 }
             />
 
-            {plantQuery.isLoading ? (
-                <LoadingState
-                    title="Carregando planta"
-                    description="Buscando detalhes atualizados na API."
-                />
-            ) : null}
-
-            {plantQuery.isError ? (
-                <ErrorState
-                    title="Não foi possível carregar a planta"
-                    description={getAppErrorMessage(plantQuery.error)}
-                    actionLabel="Tentar novamente"
-                    onAction={() => void plantQuery.refetch()}
-                />
-            ) : null}
-
-            {plantQuery.data ? (
-                <div className="space-y-5">
-                    <PlantDetailSummary plant={plantQuery.data} />
-
-                    <PlantQuickLinks plantId={parsedPlantId} />
-
-                    <ArchivePlantButton
-                        plantId={parsedPlantId}
-                        plantName={plantQuery.data.name}
-                        archivedAt={plantQuery.data.archived_at}
+            <div className="space-y-5">
+                {plantQuery.isLoading ? (
+                    <LoadingState
+                        title="Carregando planta"
+                        description="Buscando detalhes atualizados na API."
                     />
-                </div>
-            ) : null}
+                ) : null}
+
+                {plantQuery.isError ? (
+                    <ErrorState
+                        title="Não foi possível carregar a planta"
+                        description={getAppErrorMessage(plantQuery.error)}
+                        actionLabel="Tentar novamente"
+                        onAction={() => void plantQuery.refetch()}
+                    />
+                ) : null}
+
+                {plant ? (
+                    <>
+                        <PlantDetailSummary plant={plant} />
+
+                        <PlantQuickLinks plantId={parsedPlantId} />
+
+                        <ArchivePlantButton
+                            plantId={parsedPlantId}
+                            plantName={plant.name}
+                            archivedAt={plant.archived_at}
+                        />
+                    </>
+                ) : null}
+            </div>
         </>
     );
 }

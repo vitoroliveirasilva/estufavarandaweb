@@ -5,12 +5,13 @@ export type SpeciesProfileSummary = {
   common_name: string;
 };
 
-export type PlantHealthStatus =
+export type KnownPlantHealthStatus =
   | "healthy"
   | "attention"
   | "recovering"
-  | "critical"
-  | string;
+  | "critical";
+
+export type PlantHealthStatus = KnownPlantHealthStatus | (string & {});
 
 export type PlantListItem = {
   id: number;

@@ -19,27 +19,20 @@ type PlantFiltersProps = {
 };
 
 const healthStatusOptions = [
-    {
-        value: "",
-        label: "Todos"
-    },
-    {
-        value: "healthy",
-        label: "Saudável"
-    },
-    {
-        value: "attention",
-        label: "Atenção"
-    },
-    {
-        value: "recovering",
-        label: "Em recuperação"
-    },
-    {
-        value: "critical",
-        label: "Crítica"
-    }
-];
+    { value: "", label: "Todos" },
+    { value: "healthy", label: "Saudável" },
+    { value: "attention", label: "Atenção" },
+    { value: "recovering", label: "Em recuperação" },
+    { value: "critical", label: "Crítica" }
+] as const;
+
+function normalizeFilters(filters: PlantFiltersValue): PlantFiltersValue {
+    return {
+        search: filters.search.trim(),
+        healthStatus: filters.healthStatus.trim(),
+        includeArchived: filters.includeArchived
+    };
+}
 
 export function PlantFilters({
     value,
@@ -55,7 +48,12 @@ export function PlantFilters({
 
     function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
-        onChange(draft);
+        onChange(normalizeFilters(draft));
+    }
+
+    function handleClear() {
+        setDraft({ search: "", healthStatus: "", includeArchived: false });
+        onClear();
     }
 
     return (
@@ -68,6 +66,7 @@ export function PlantFilters({
                             id="plant-search"
                             value={draft.search}
                             placeholder="Nome, apelido, local..."
+                            maxLength={120}
                             onChange={(event) =>
                                 setDraft((current) => ({
                                     ...current,
@@ -122,7 +121,7 @@ export function PlantFilters({
                                 type="button"
                                 variant="outline"
                                 disabled={isFetching}
-                                onClick={onClear}
+                                onClick={handleClear}
                             >
                                 Limpar
                             </Button>

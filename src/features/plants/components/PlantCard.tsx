@@ -12,14 +12,28 @@ import {
     CardTitle
 } from "@/shared/components/ui/card";
 
+const FALLBACK_SPECIES = "Sem espécie vinculada";
+
+function buildSubtitle(plant: PlantListItem): string {
+    const speciesName = plant.species_profile?.common_name?.trim() || FALLBACK_SPECIES;
+    const nickname = plant.nickname?.trim();
+
+    return nickname ? `${nickname} · ${speciesName}` : speciesName;
+}
+
+function buildLocation(plant: PlantListItem): string {
+    return [plant.location_label, plant.city_name]
+        .map((value) => value?.trim())
+        .filter(Boolean)
+        .join(" · ") || "Local não informado";
+}
+
 type PlantCardProps = {
     plant: PlantListItem;
 };
 
 export function PlantCard({ plant }: PlantCardProps) {
-    const subtitle = plant.nickname
-        ? `${plant.nickname} · ${plant.species_profile?.common_name ?? "Sem espécie"}`
-        : plant.species_profile?.common_name ?? "Sem espécie vinculada";
+    const isArchived = Boolean(plant.archived_at);
 
     return (
         <Card className="flex h-full flex-col">
@@ -33,20 +47,17 @@ export function PlantCard({ plant }: PlantCardProps) {
                 </div>
 
                 <CardTitle className="line-clamp-1">{plant.name}</CardTitle>
-                <CardDescription className="line-clamp-2">{subtitle}</CardDescription>
+                <CardDescription className="line-clamp-2">{buildSubtitle(plant)}</CardDescription>
             </CardHeader>
 
             <CardContent className="flex flex-1 flex-col justify-between gap-5">
                 <div className="space-y-3 text-sm text-muted-foreground">
                     <div className="flex items-center gap-2">
                         <MapPin className="h-4 w-4 shrink-0" />
-                        <span className="truncate">
-                            {[plant.location_label, plant.city_name].filter(Boolean).join(" · ") ||
-                                "Local não informado"}
-                        </span>
+                        <span className="truncate">{buildLocation(plant)}</span>
                     </div>
 
-                    {plant.archived_at ? (
+                    {isArchived ? (
                         <div className="flex items-center gap-2 text-amber-700">
                             <CalendarDays className="h-4 w-4 shrink-0" />
                             <span>Arquivada</span>
@@ -60,7 +71,7 @@ export function PlantCard({ plant }: PlantCardProps) {
                     </Button>
 
                     <Button asChild variant="outline" size="icon">
-                        <Link to={`/app/plants/${plant.id}/edit`} aria-label="Editar planta">
+                        <Link to={`/app/plants/${plant.id}/edit`} aria-label={`Editar ${plant.name}`}>
                             <Pencil className="h-4 w-4" />
                         </Link>
                     </Button>

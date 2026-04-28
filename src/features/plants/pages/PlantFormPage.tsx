@@ -1,4 +1,5 @@
 import { ArrowLeft } from "lucide-react";
+import { useMemo } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { getAppErrorMessage } from "@/core/api/apiError";
@@ -71,6 +72,11 @@ export function PlantFormPage({ mode }: PlantFormPageProps) {
     const createMutation = useCreatePlantMutation();
     const updateMutation = useUpdatePlantMutation(parsedPlantId ?? 0);
 
+    const editInitialValues = useMemo(
+        () => (plantQuery.data ? plantToFormValues(plantQuery.data) : null),
+        [plantQuery.data]
+    );
+
     const mutationError = createMutation.error ?? updateMutation.error;
     const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
@@ -104,6 +110,7 @@ export function PlantFormPage({ mode }: PlantFormPageProps) {
     const description = isEdit
         ? "Atualize os dados da planta usando PATCH /plants/{plantId}."
         : "Crie uma nova planta usando POST /plants.";
+    const cancelPath = isEdit ? `/app/plants/${parsedPlantId ?? ""}` : "/app/plants";
 
     return (
         <>
@@ -113,7 +120,7 @@ export function PlantFormPage({ mode }: PlantFormPageProps) {
                 description={description}
                 actions={
                     <Button asChild variant="outline">
-                        <Link to={isEdit ? `/app/plants/${parsedPlantId ?? ""}` : "/app/plants"}>
+                        <Link to={cancelPath}>
                             <ArrowLeft className="mr-2 h-4 w-4" />
                             Cancelar
                         </Link>
@@ -147,9 +154,9 @@ export function PlantFormPage({ mode }: PlantFormPageProps) {
                 />
             ) : null}
 
-            {isEdit && plantQuery.data ? (
+            {isEdit && editInitialValues ? (
                 <PlantForm
-                    initialValues={plantToFormValues(plantQuery.data)}
+                    initialValues={editInitialValues}
                     submitLabel="Salvar alterações"
                     isSubmitting={isSubmitting}
                     apiErrorMessage={mutationError ? getAppErrorMessage(mutationError) : null}
