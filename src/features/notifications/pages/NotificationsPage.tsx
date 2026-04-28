@@ -81,6 +81,7 @@ export function NotificationsPage() {
     const markReadMutation = useMarkNotificationReadMutation();
     const discardMutation = useDiscardNotificationMutation();
 
+    const notifications = notificationsQuery.data?.items ?? [];
     const total =
         notificationsQuery.data?.meta?.total ??
         notificationsQuery.data?.items.length ??
@@ -89,7 +90,7 @@ export function NotificationsPage() {
         1,
         notificationsQuery.data?.meta?.total_pages ?? Math.ceil(total / pageSize)
     );
-    const hasItems = Boolean(notificationsQuery.data?.items.length);
+    const hasItems = notifications.length > 0;
     const mutationError = markReadMutation.error ?? discardMutation.error;
 
     const mutatingNotificationIds = useMemo(() => {
@@ -104,7 +105,12 @@ export function NotificationsPage() {
         }
 
         return ids;
-    }, [discardMutation.isPending, discardMutation.variables, markReadMutation.isPending, markReadMutation.variables]);
+    }, [
+        discardMutation.isPending,
+        discardMutation.variables,
+        markReadMutation.isPending,
+        markReadMutation.variables
+    ]);
 
     function updateParams(nextFilters: NotificationFiltersValue, nextPage = 1) {
         const next = new URLSearchParams();
@@ -144,7 +150,9 @@ export function NotificationsPage() {
             return;
         }
 
-        const confirmed = window.confirm("Descartar esta notificação?");
+        const confirmed = window.confirm(
+            "Descartar esta notificação?\n\nEla deixará de aparecer como pendente."
+        );
 
         if (!confirmed) {
             return;
@@ -156,12 +164,11 @@ export function NotificationsPage() {
     return (
         <>
             <PageHeader
-                eyebrow="Notificações"
                 title="Central de notificações"
-                description="Listagem integrada à API, com filtros, leitura e descarte."
+                description="Acompanhe alertas, lembretes e avisos importantes sobre suas plantas."
             />
 
-            <div className="space-y-5">
+            <div className="flex min-h-[calc(100vh-12rem)] flex-col gap-5">
                 <NotificationFilters
                     value={filters}
                     isFetching={notificationsQuery.isFetching}
@@ -183,7 +190,7 @@ export function NotificationsPage() {
                 {notificationsQuery.isLoading ? (
                     <LoadingState
                         title="Carregando notificações"
-                        description="Buscando notificações na API."
+                        description="Buscando seus avisos mais recentes."
                     />
                 ) : null}
 
@@ -206,8 +213,8 @@ export function NotificationsPage() {
 
                 {hasItems ? (
                     <>
-                        <div className="space-y-4">
-                            {notificationsQuery.data?.items.map((notification) => (
+                        <div className="space-y-3">
+                            {notifications.map((notification) => (
                                 <NotificationCard
                                     key={notification.id}
                                     notification={notification}
@@ -218,7 +225,7 @@ export function NotificationsPage() {
                             ))}
                         </div>
 
-                        <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border bg-card px-4 py-3 sm:flex-row">
+                        <div className="mt-auto flex flex-col items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card px-4 py-3 shadow-sm sm:flex-row">
                             <p className="text-sm text-muted-foreground">
                                 Página {page} de {totalPages} · {total} registro(s)
                             </p>
@@ -229,14 +236,17 @@ export function NotificationsPage() {
                                     variant="outline"
                                     disabled={page <= 1 || notificationsQuery.isFetching}
                                     onClick={() => goToPage(page - 1)}
+                                    className="rounded-2xl"
                                 >
                                     Anterior
                                 </Button>
+
                                 <Button
                                     type="button"
                                     variant="outline"
                                     disabled={page >= totalPages || notificationsQuery.isFetching}
                                     onClick={() => goToPage(page + 1)}
+                                    className="rounded-2xl"
                                 >
                                     Próxima
                                 </Button>
