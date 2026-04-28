@@ -36,15 +36,10 @@ function parsePositiveInt(
     return max ? Math.min(parsed, max) : parsed;
 }
 
-function parseBoolean(value: string | null): boolean {
-    return value === "true" || value === "1";
-}
-
 function getFilters(searchParams: URLSearchParams): PlantFiltersValue {
     return {
         search: searchParams.get("search")?.trim() ?? "",
-        healthStatus: searchParams.get("health_status")?.trim() ?? "",
-        includeArchived: parseBoolean(searchParams.get("include_archived"))
+        healthStatus: searchParams.get("health_status")?.trim() ?? ""
     };
 }
 
@@ -65,15 +60,16 @@ export function PlantsListPage() {
         page_size: pageSize,
         search: filters.search || undefined,
         health_status: filters.healthStatus || undefined,
-        include_archived: filters.includeArchived
+        include_archived: false
     };
 
     const plantsQuery = usePlantsList(queryParams);
 
-    const total = plantsQuery.data?.meta?.total ?? plantsQuery.data?.items.length ?? 0;
+    const plants = plantsQuery.data?.items ?? [];
+    const total = plantsQuery.data?.meta?.total ?? plants.length;
     const totalPages =
         plantsQuery.data?.meta?.total_pages ?? Math.max(1, Math.ceil(total / pageSize));
-    const hasItems = Boolean(plantsQuery.data?.items.length);
+    const hasItems = plants.length > 0;
 
     function updateParams(nextFilters: PlantFiltersValue, nextPage = 1) {
         const next = new URLSearchParams();
@@ -89,10 +85,6 @@ export function PlantsListPage() {
 
         if (healthStatus) {
             next.set("health_status", healthStatus);
-        }
-
-        if (nextFilters.includeArchived) {
-            next.set("include_archived", "true");
         }
 
         setSearchParams(next);
@@ -112,9 +104,7 @@ export function PlantsListPage() {
     return (
         <>
             <PageHeader
-                eyebrow="Plantas"
                 title="Minhas plantas"
-                description="Listagem integrada à API com paginação, filtros e busca."
                 actions={
                     <Button asChild>
                         <Link to="/app/plants/new">
@@ -125,7 +115,7 @@ export function PlantsListPage() {
                 }
             />
 
-            <div className="space-y-5">
+            <div className="flex min-h-[calc(100vh-12rem)] flex-col gap-5">
                 <PlantFilters
                     value={filters}
                     isFetching={plantsQuery.isFetching}
@@ -153,7 +143,7 @@ export function PlantsListPage() {
                     <EmptyState
                         icon={<Sprout className="h-6 w-6" />}
                         title="Nenhuma planta encontrada"
-                        description="Cadastre sua primeira planta ou ajuste os filtros para encontrar registros arquivados ou com outro status."
+                        description="Cadastre sua primeira planta ou ajuste os filtros para encontrar outro cadastro."
                         actionLabel="Cadastrar planta"
                         onAction={() => navigate("/app/plants/new")}
                     />
@@ -162,12 +152,12 @@ export function PlantsListPage() {
                 {hasItems ? (
                     <>
                         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                            {plantsQuery.data?.items.map((plant) => (
+                            {plants.map((plant) => (
                                 <PlantCard key={plant.id} plant={plant} />
                             ))}
                         </div>
 
-                        <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border bg-card px-4 py-3 sm:flex-row">
+                        <div className="mt-auto flex flex-col items-center justify-between gap-3 rounded-2xl border bg-card px-4 py-3 shadow-sm sm:flex-row">
                             <p className="text-sm text-muted-foreground">
                                 Página {page} de {totalPages} · {total} registro(s)
                             </p>
@@ -181,6 +171,7 @@ export function PlantsListPage() {
                                 >
                                     Anterior
                                 </Button>
+
                                 <Button
                                     type="button"
                                     variant="outline"

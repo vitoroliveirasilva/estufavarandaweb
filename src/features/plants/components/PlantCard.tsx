@@ -1,4 +1,4 @@
-import { CalendarDays, MapPin, Pencil, Sprout } from "lucide-react";
+import { Pencil, Sprout } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { PlantStatus } from "@/features/plants/components/PlantStatus";
@@ -12,20 +12,8 @@ import {
     CardTitle
 } from "@/shared/components/ui/card";
 
-const FALLBACK_SPECIES = "Sem espécie vinculada";
-
 function buildSubtitle(plant: PlantListItem): string {
-    const speciesName = plant.species_profile?.common_name?.trim() || FALLBACK_SPECIES;
-    const nickname = plant.nickname?.trim();
-
-    return nickname ? `${nickname} · ${speciesName}` : speciesName;
-}
-
-function buildLocation(plant: PlantListItem): string {
-    return [plant.location_label, plant.city_name]
-        .map((value) => value?.trim())
-        .filter(Boolean)
-        .join(" · ") || "Local não informado";
+    return plant.nickname?.trim() || "";
 }
 
 type PlantCardProps = {
@@ -33,7 +21,6 @@ type PlantCardProps = {
 };
 
 export function PlantCard({ plant }: PlantCardProps) {
-    const isArchived = Boolean(plant.archived_at);
 
     return (
         <Card className="flex h-full flex-col">
@@ -51,20 +38,6 @@ export function PlantCard({ plant }: PlantCardProps) {
             </CardHeader>
 
             <CardContent className="flex flex-1 flex-col justify-between gap-5">
-                <div className="space-y-3 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 shrink-0" />
-                        <span className="truncate">{buildLocation(plant)}</span>
-                    </div>
-
-                    {isArchived ? (
-                        <div className="flex items-center gap-2 text-amber-700">
-                            <CalendarDays className="h-4 w-4 shrink-0" />
-                            <span>Arquivada</span>
-                        </div>
-                    ) : null}
-                </div>
-
                 <div className="flex gap-2">
                     <Button asChild className="flex-1">
                         <Link to={`/app/plants/${plant.id}`}>Abrir</Link>
