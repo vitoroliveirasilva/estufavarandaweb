@@ -5,7 +5,7 @@ import type {
   CreatePlantEventResponse,
   PaginatedPlantEventsResult,
   PlantEvent,
-  PlantEventsParams
+  PlantEventsParams,
 } from "@/features/events/types/eventTypes";
 
 const DEFAULT_PAGE = 1;
@@ -22,9 +22,9 @@ function assertValidPlantId(plantId: number): void {
 function normalizePositiveInteger(
   value: number | undefined,
   fallback: number,
-  max?: number
+  max?: number,
 ): number {
-  if (!Number.isInteger(value) || value <= 0) {
+  if (value === undefined || !Number.isInteger(value) || value <= 0) {
     return fallback;
   }
 
@@ -42,49 +42,49 @@ function normalizeEventType(value: string | undefined): string | undefined {
 }
 
 function cleanParams(
-  params: PlantEventsParams
+  params: PlantEventsParams,
 ): Record<string, string | number | boolean> {
   return {
     page: normalizePositiveInteger(params.page, DEFAULT_PAGE),
     page_size: normalizePositiveInteger(
       params.page_size,
       DEFAULT_PAGE_SIZE,
-      MAX_PAGE_SIZE
+      MAX_PAGE_SIZE,
     ),
     ...(normalizeEventType(params.event_type)
       ? { event_type: normalizeEventType(params.event_type) }
-      : {})
+      : {}),
   };
 }
 
 export async function listPlantEvents(
   plantId: number,
-  params: PlantEventsParams = {}
+  params: PlantEventsParams = {},
 ): Promise<PaginatedPlantEventsResult> {
   assertValidPlantId(plantId);
 
   const response = await apiClient.get<ApiEnvelope<PlantEvent[]>>(
     `/plants/${plantId}/events`,
     {
-      params: cleanParams(params)
-    }
+      params: cleanParams(params),
+    },
   );
 
   return {
     items: unwrapEnvelope(response.data),
-    meta: response.data.meta
+    meta: response.data.meta,
   };
 }
 
 export async function createPlantEvent(
   plantId: number,
-  payload: CreatePlantEventPayload
+  payload: CreatePlantEventPayload,
 ): Promise<CreatePlantEventResponse> {
   assertValidPlantId(plantId);
 
   const response = await apiClient.post<ApiEnvelope<CreatePlantEventResponse>>(
     `/plants/${plantId}/events`,
-    payload
+    payload,
   );
 
   return unwrapEnvelope(response.data);
