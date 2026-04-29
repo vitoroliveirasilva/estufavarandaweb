@@ -4,6 +4,7 @@ import {
   useState,
   type MouseEventHandler
 } from "react";
+
 import { Eye, EyeOff } from "lucide-react";
 
 import { Button } from "@/shared/components/ui/button";
@@ -30,10 +31,7 @@ const AppPasswordInput = forwardRef<HTMLInputElement, AppPasswordInputProps>(
           type={visible ? "text" : "password"}
           disabled={disabled}
           autoComplete={autoComplete ?? "current-password"}
-          className={cn(
-            "h-11 rounded-2xl border-input bg-background pr-12 shadow-sm transition-colors hover:border-primary/40 focus-visible:ring-primary/15",
-            className
-          )}
+          className={cn("pr-12", className)}
           {...props}
         />
 
@@ -45,7 +43,7 @@ const AppPasswordInput = forwardRef<HTMLInputElement, AppPasswordInputProps>(
           aria-controls={inputId}
           aria-label={visible ? "Ocultar senha" : "Mostrar senha"}
           aria-pressed={visible}
-          className="absolute right-1 top-1/2 h-9 w-9 -translate-y-1/2 rounded-xl text-muted-foreground hover:bg-primary/5 hover:text-primary"
+          className="absolute right-0 top-0 h-10 w-10 rounded-l-none text-muted-foreground hover:text-foreground"
           onMouseDown={handleMouseDown}
           onClick={() => setVisible((current) => !current)}
         >

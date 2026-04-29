@@ -26,18 +26,17 @@ export function QuickActionCard({
   actionLabel
 }: QuickActionCardProps) {
   return (
-    <Card className="group h-full overflow-hidden border-border/70 bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/20 hover:shadow-md">
+    <Card className="h-full overflow-hidden">
       <CardHeader>
-        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-primary/15 bg-primary/5 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+        <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-secondary text-primary">
           <Icon aria-hidden="true" className="h-5 w-5" />
         </div>
-
-        <CardTitle className="text-lg">{title}</CardTitle>
+        <CardTitle>{title}</CardTitle>
         <CardDescription className="leading-6">{description}</CardDescription>
       </CardHeader>
 
       <CardContent>
-        <Button asChild variant="outline" className="h-11 w-full rounded-2xl">
+        <Button asChild variant="outline" className="w-full">
           <Link to={to} aria-label={`${actionLabel}: ${title}`}>
             {actionLabel}
           </Link>

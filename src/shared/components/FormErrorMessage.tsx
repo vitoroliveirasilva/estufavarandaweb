@@ -1,4 +1,3 @@
-import { AlertCircle } from "lucide-react";
 import type { HTMLAttributes } from "react";
 
 import { cn } from "@/shared/utils/cn";
@@ -20,14 +19,10 @@ export function FormErrorMessage({
     <p
       role="alert"
       aria-live="polite"
-      className={cn(
-        "flex items-start gap-1.5 text-sm font-medium leading-6 text-destructive",
-        className
-      )}
+      className={cn("text-sm font-medium text-destructive", className)}
       {...props}
     >
-      <AlertCircle className="mt-1 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-      <span>{message}</span>
+      {message}
     </p>
   );
 }

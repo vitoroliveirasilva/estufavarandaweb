@@ -24,23 +24,18 @@ export function ErrorState({
   const canShowAction = Boolean(actionLabel && onAction);
 
   return (
-    <Card
-      className={cn(
-        "overflow-hidden border-destructive/20 bg-card shadow-sm",
-        className
-      )}
-    >
+    <Card className={cn("overflow-hidden", className)}>
       <CardContent
         role="alert"
-        className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between"
+        className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:justify-between"
       >
         <div className="flex min-w-0 gap-4">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-destructive/20 bg-destructive/10 text-destructive">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
             <AlertTriangle aria-hidden="true" className="h-5 w-5" />
           </div>
 
           <div className="min-w-0">
-            <p className="font-semibold text-foreground">{title}</p>
+            <p className="font-medium">{title}</p>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
               {description}
             </p>
@@ -52,7 +47,7 @@ export function ErrorState({
             type="button"
             variant="outline"
             disabled={actionDisabled}
-            className="h-11 shrink-0 rounded-2xl"
+            className="shrink-0"
             onClick={onAction}
           >
             {actionLabel}
