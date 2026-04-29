@@ -11,50 +11,76 @@ type TopbarProps = {
     onLogout: () => void;
 };
 
-export function Topbar({ user, canSeeAdmin, isLoggingOut, onLogout }: TopbarProps) {
+export function Topbar({
+    user,
+    canSeeAdmin,
+    isLoggingOut,
+    onLogout
+}: TopbarProps) {
     const userName = user?.name?.trim() || "Usuário";
 
     return (
-        <header className="sticky top-0 z-20 border-b bg-background/90 backdrop-blur">
+        <header className="sticky top-0 z-20 border-b border-border/70 bg-background/95 backdrop-blur">
             <div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-                <Link
-                    to="/app"
-                    className="flex items-center gap-2 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:hidden"
-                    aria-label="Ir para o dashboard"
-                >
-                    <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-                        <Leaf className="h-4 w-4" aria-hidden="true" />
-                    </span>
-                    <span className="font-semibold">Estufa</span>
-                </Link>
+                <div className="flex min-w-0 items-center gap-3">
+                    <Link
+                        to="/app"
+                        className="flex shrink-0 items-center gap-2 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:hidden"
+                        aria-label="Ir para o dashboard"
+                    >
+                        <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
+                            <Leaf className="h-4 w-4" aria-hidden="true" />
+                        </span>
 
-                <div className="hidden lg:block">
-                    <p className="text-sm font-medium">Painel web</p>
-                    <p className="text-xs text-muted-foreground">
-                        Acompanhe plantas, cuidados e histórico em um só lugar.
-                    </p>
-                </div>
+                        <span className="hidden font-semibold text-foreground xs:inline">
+                            Estufa
+                        </span>
+                    </Link>
 
-                <div className="flex items-center gap-2">
                     {user ? (
-                        <div className="hidden text-right sm:block">
-                            <div className="flex items-center justify-end gap-2">
-                                <p className="max-w-56 truncate text-sm font-medium" title={userName}>
+                        <div className="min-w-0">
+                            {canSeeAdmin ? (
+                                <div className="mb-0.5 flex items-center gap-1.5">
+                                    <ShieldCheck
+                                        className="h-4 w-4 shrink-0 text-primary"
+                                        aria-hidden="true"
+                                    />
+
+                                    <p className="text-xs text-muted-foreground">
+                                        Administrador
+                                    </p>
+                                </div>
+                            ) : null}
+
+                            <div className="mb-0.5 flex items-center gap-1.5">
+                                {!canSeeAdmin ? (
+                                    <div className="mb-0.5 flex items-center gap-1.5">
+                                        <ShieldCheck
+                                            className="h-4 w-4 shrink-0 text-primary"
+                                            aria-hidden="true"
+                                        />
+                                    </div>
+                                ) : null}
+                                <p
+                                    className="max-w-[12rem] truncate text-sm font-medium text-foreground sm:max-w-72"
+                                    title={userName}
+                                >
                                     {userName}
                                 </p>
-                                {canSeeAdmin ? (
-                                    <ShieldCheck className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-                                ) : null}
                             </div>
-                            <p className="text-xs text-muted-foreground">
-                                {canSeeAdmin ? "Administrador" : "Usuário"}
-                            </p>
                         </div>
                     ) : null}
+                </div>
 
-                    <Button asChild variant="ghost" size="sm">
+                <div className="ml-auto flex shrink-0 items-center gap-2">
+                    <Button
+                        asChild
+                        variant="outline"
+                        size="sm"
+                        className="h-10 rounded-2xl border-border/70 bg-card shadow-sm transition-colors hover:border-primary/20 hover:bg-primary/5 hover:text-primary"
+                    >
                         <Link to="/app/notifications" aria-label="Abrir notificações">
-                            <Bell className="mr-2 h-4 w-4" aria-hidden="true" />
+                            <Bell className="h-4 w-4 sm:mr-2" aria-hidden="true" />
                             <span className="hidden sm:inline">Notificações</span>
                         </Link>
                     </Button>
@@ -65,11 +91,13 @@ export function Topbar({ user, canSeeAdmin, isLoggingOut, onLogout }: TopbarProp
                         size="sm"
                         disabled={isLoggingOut}
                         aria-busy={isLoggingOut}
-                        className="lg:hidden"
+                        className="h-10 rounded-2xl text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive lg:hidden"
                         onClick={onLogout}
                     >
-                        <LogOut className="mr-2 h-4 w-4" aria-hidden="true" />
-                        {isLoggingOut ? "Saindo..." : "Sair"}
+                        <LogOut className="h-4 w-4 sm:mr-2" aria-hidden="true" />
+                        <span className="hidden sm:inline">
+                            {isLoggingOut ? "Saindo..." : "Sair"}
+                        </span>
                     </Button>
                 </div>
             </div>

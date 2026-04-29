@@ -1,13 +1,11 @@
-import { Leaf, LogOut } from "lucide-react";
+import { Leaf, LogOut, Sprout } from "lucide-react";
 import { Link, NavLink } from "react-router-dom";
 
 import type { AuthUser } from "@/core/auth/authStore";
 import { Button } from "@/shared/components/ui/button";
-import { Separator } from "@/shared/components/ui/separator";
 import {
     adminNavItems,
     mainNavItems,
-    preparedNavItems,
     type AppNavItem
 } from "@/shared/constants/navigation";
 import { cn } from "@/shared/utils/cn";
@@ -28,6 +26,34 @@ type SidebarSectionProps = {
     items: readonly AppNavItem[];
 };
 
+function normalizeText(value: string): string {
+    return value
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+}
+
+function shouldHideNavItem(item: AppNavItem): boolean {
+    const label = normalizeText(item.label);
+    const path = item.path.trim().toLowerCase();
+
+    return (
+        label.includes("especie") ||
+        label.includes("configuracao") ||
+        label.includes("configuracoes") ||
+        path.includes("species") ||
+        path.includes("especies") ||
+        path.includes("settings") ||
+        path.includes("configuracoes") ||
+        path.includes("config")
+    );
+}
+
+function getVisibleNavItems(items: readonly AppNavItem[]): readonly AppNavItem[] {
+    return items.filter((item) => !shouldHideNavItem(item));
+}
+
 function SidebarLink({ item }: SidebarLinkProps) {
     const Icon = item.icon;
 
@@ -37,24 +63,42 @@ function SidebarLink({ item }: SidebarLinkProps) {
             end={item.exact}
             className={({ isActive }) =>
                 cn(
-                    "group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                    "group flex items-center gap-3 rounded-2xl border px-3 py-2.5 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                     isActive
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                        ? "border-primary/20 bg-primary/10 text-primary shadow-sm"
+                        : "border-transparent text-muted-foreground hover:border-primary/15 hover:bg-primary/5 hover:text-primary"
                 )
             }
         >
-            <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-            <span className="truncate">{item.label}</span>
+            {({ isActive }) => (
+                <>
+                    <span
+                        className={cn(
+                            "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors",
+                            isActive
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-muted/60 text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary"
+                        )}
+                    >
+                        <Icon className="h-4 w-4" aria-hidden="true" />
+                    </span>
+
+                    <span className="truncate">{item.label}</span>
+                </>
+            )}
         </NavLink>
     );
 }
 
 function SidebarSection({ title, items }: SidebarSectionProps) {
+    if (!items.length) {
+        return null;
+    }
+
     return (
-        <section aria-label={title ?? "Navegação principal"}>
+        <section aria-label={title ?? "Navegação principal"} className="space-y-2">
             {title ? (
-                <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <p className="px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     {title}
                 </p>
             ) : null}
@@ -68,56 +112,79 @@ function SidebarSection({ title, items }: SidebarSectionProps) {
     );
 }
 
-export function Sidebar({ user, canSeeAdmin, isLoggingOut, onLogout }: SidebarProps) {
+export function Sidebar({
+    user,
+    canSeeAdmin,
+    isLoggingOut,
+    onLogout
+}: SidebarProps) {
     const userName = user?.name?.trim() || "Usuário";
     const userEmail = user?.email?.trim() || "E-mail não informado";
 
+    const visibleMainNavItems = getVisibleNavItems(mainNavItems);
+    const visibleAdminNavItems = getVisibleNavItems(adminNavItems);
+
     return (
-        <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 border-r bg-card/90 backdrop-blur lg:flex lg:flex-col">
-            <div className="flex h-16 items-center gap-3 px-6">
+        <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 border-r border-border/70 bg-background/95 backdrop-blur lg:flex lg:flex-col">
+            <div className="p-4">
                 <Link
                     to="/app"
-                    className="flex items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    className="group flex items-center gap-3 rounded-3xl p-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     aria-label="Ir para o dashboard"
                 >
-                    <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm transition-transform group-hover:scale-105">
                         <Leaf className="h-5 w-5" aria-hidden="true" />
                     </span>
 
-                    <span>
-                        <strong className="block leading-tight">Estufa</strong>
-                        <span className="text-xs text-muted-foreground">da Varanda</span>
+                    <span className="min-w-0">
+                        <strong className="block truncate text-sm leading-tight text-foreground">
+                            Estufa da Varanda
+                        </strong>
+                        <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                            Gestão de plantas
+                        </span>
                     </span>
                 </Link>
             </div>
 
-            <nav className="flex-1 space-y-6 overflow-y-auto px-4 py-4" aria-label="Menu lateral">
-                <SidebarSection items={mainNavItems} />
+            <nav
+                className="flex-1 space-y-6 overflow-y-auto px-4 py-1"
+                aria-label="Menu lateral"
+            >
+                <SidebarSection items={visibleMainNavItems} />
 
-                <Separator />
-
-                <SidebarSection title="Preparados" items={preparedNavItems} />
-
-                {canSeeAdmin ? (
-                    <>
-                        <Separator />
-                        <SidebarSection title="Admin" items={adminNavItems} />
-                    </>
+                {canSeeAdmin && visibleAdminNavItems.length ? (
+                    <SidebarSection title="Administração" items={visibleAdminNavItems} />
                 ) : null}
             </nav>
 
-            <div className="space-y-4 border-t p-4">
+            <div className="border-t border-border/70 p-4">
                 {user ? (
-                    <div className="rounded-2xl bg-secondary p-3" title={userEmail}>
-                        <p className="truncate text-sm font-medium">{userName}</p>
-                        <p className="truncate text-xs text-muted-foreground">{userEmail}</p>
+                    <div
+                        className="mb-3 rounded-3xl border border-border/70 bg-card p-3 shadow-sm"
+                        title={userEmail}
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-primary/15 bg-primary/5 text-primary">
+                                <Sprout className="h-5 w-5" aria-hidden="true" />
+                            </div>
+
+                            <div className="min-w-0">
+                                <p className="truncate text-sm font-semibold text-foreground">
+                                    {userName}
+                                </p>
+                                <p className="truncate text-xs text-muted-foreground">
+                                    {userEmail}
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 ) : null}
 
                 <Button
                     type="button"
                     variant="outline"
-                    className="w-full justify-start"
+                    className="h-11 w-full justify-center rounded-2xl border-border/70 text-muted-foreground transition-colors hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
                     disabled={isLoggingOut}
                     aria-busy={isLoggingOut}
                     onClick={onLogout}
