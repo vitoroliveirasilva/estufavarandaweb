@@ -15,17 +15,27 @@ export function LoadingState({
   className
 }: LoadingStateProps) {
   return (
-    <Card className={cn("overflow-hidden", className)}>
+    <Card
+      className={cn(
+        "overflow-hidden border-border/70 bg-card shadow-sm",
+        className
+      )}
+    >
       <CardContent
         role="status"
         aria-live="polite"
         aria-busy="true"
-        className="flex items-center gap-4 p-6"
+        className="flex items-center gap-4 p-5"
       >
-        <Loader2 aria-hidden="true" className="h-5 w-5 animate-spin text-primary" />
-        <div>
-          <p className="font-medium">{title}</p>
-          <p className="text-sm leading-6 text-muted-foreground">{description}</p>
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-primary/15 bg-primary/5 text-primary">
+          <Loader2 aria-hidden="true" className="h-5 w-5 animate-spin" />
+        </div>
+
+        <div className="min-w-0">
+          <p className="font-semibold text-foreground">{title}</p>
+          <p className="text-sm leading-6 text-muted-foreground">
+            {description}
+          </p>
         </div>
       </CardContent>
     </Card>
