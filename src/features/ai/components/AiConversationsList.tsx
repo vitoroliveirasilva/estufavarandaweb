@@ -313,11 +313,6 @@ function AssistantBubble({
                         IA
                     </span>
 
-                    <span className="inline-flex items-center rounded-full border border-border/70 bg-muted/30 px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-                        <LockKeyhole className="mr-1.5 h-3.5 w-3.5" />
-                        Privada
-                    </span>
-
                     {confidence ? (
                         <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/5 px-2.5 py-0.5 text-xs font-medium text-primary">
                             Confiança: {confidence}

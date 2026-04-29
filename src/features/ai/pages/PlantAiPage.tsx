@@ -1,9 +1,14 @@
 import {
     ArrowLeft,
     RefreshCw,
-    Sparkles
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState
+} from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
 import { getAppErrorMessage } from "@/core/api/apiError";
@@ -194,6 +199,10 @@ export function PlantAiPage() {
     const [previewConversation, setPreviewConversation] =
         useState<AiConversation | null>(null);
 
+    const chatScrollRef = useRef<HTMLDivElement | null>(null);
+    const chatBottomRef = useRef<HTMLDivElement | null>(null);
+    const hasPerformedInitialScrollRef = useRef(false);
+
     const parsedPlantId = parsePositiveInt(plantId, 0);
     const page = parsePositiveInt(searchParams.get("page"), DEFAULT_PAGE);
     const pageSize = parsePositiveInt(
@@ -214,6 +223,35 @@ export function PlantAiPage() {
         parsedPlantId > 0
     );
     const askMutation = useAskPlantAiMutation(parsedPlantId);
+
+    const scrollChatToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+        window.requestAnimationFrame(() => {
+            const container = chatScrollRef.current;
+            const bottom = chatBottomRef.current;
+
+            if (!container) {
+                return;
+            }
+
+            if (bottom) {
+                bottom.scrollIntoView({
+                    behavior,
+                    block: "end"
+                });
+                return;
+            }
+
+            container.scrollTo({
+                top: container.scrollHeight,
+                behavior
+            });
+        });
+    }, []);
+
+    useEffect(() => {
+        hasPerformedInitialScrollRef.current = false;
+        setPreviewConversation(null);
+    }, [parsedPlantId]);
 
     if (!parsedPlantId) {
         return (
@@ -242,6 +280,19 @@ export function PlantAiPage() {
             ? [previewConversation, ...conversations]
             : conversations;
 
+    const chatVersion = visibleConversations
+        .map((conversation) => {
+            const messagesVersion = conversation.messages
+                .map(
+                    (message) =>
+                        `${message.id ?? "temp"}:${message.role}:${message.created_at ?? ""}:${message.content.length}`
+                )
+                .join(",");
+
+            return `${conversation.id}:${conversation.updated_at}:${messagesVersion}`;
+        })
+        .join("|");
+
     const displayTotal =
         previewConversation && !serverAlreadyHasPreview ? total + 1 : total;
 
@@ -253,6 +304,25 @@ export function PlantAiPage() {
     const hasConversations = visibleConversations.length > 0;
     const isInitialLoading = conversationsQuery.isPending && !previewConversation;
     const plantName = plantQuery.data?.name;
+
+    useEffect(() => {
+        if (isInitialLoading || conversationsQuery.isError) {
+            return;
+        }
+
+        const behavior: ScrollBehavior = hasPerformedInitialScrollRef.current
+            ? "smooth"
+            : "auto";
+
+        scrollChatToBottom(behavior);
+        hasPerformedInitialScrollRef.current = true;
+    }, [
+        askMutation.isPending,
+        chatVersion,
+        conversationsQuery.isError,
+        isInitialLoading,
+        scrollChatToBottom
+    ]);
 
     function goToPage(nextPage: number) {
         const boundedPage = Math.min(Math.max(nextPage, 1), displayTotalPages);
@@ -291,6 +361,8 @@ export function PlantAiPage() {
             })
         );
 
+        scrollChatToBottom("smooth");
+
         try {
             const response = await askMutation.mutateAsync(
                 normalizeAskAiFormValues(values)
@@ -304,6 +376,8 @@ export function PlantAiPage() {
                     response
                 })
             );
+
+            scrollChatToBottom("smooth");
         } catch (error) {
             setPreviewConversation(null);
             throw error;
@@ -364,7 +438,10 @@ export function PlantAiPage() {
                         </Button>
                     </div>
 
-                    <CardContent className="max-h-[46rem] space-y-4 overflow-y-auto bg-muted/10 p-4">
+                    <CardContent
+                        ref={chatScrollRef}
+                        className="max-h-[46rem] min-h-[28rem] space-y-4 overflow-y-auto scroll-smooth bg-muted/10 p-4"
+                    >
                         {isInitialLoading ? (
                             <LoadingState
                                 title="Carregando conversas"
@@ -391,6 +468,8 @@ export function PlantAiPage() {
                                 }
                             />
                         ) : null}
+
+                        <div ref={chatBottomRef} aria-hidden="true" />
                     </CardContent>
 
                     <AiQuestionForm
