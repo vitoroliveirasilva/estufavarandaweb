@@ -298,6 +298,24 @@ export function PlantPhotosPage() {
         }
     }
 
+    function getPhotoDownloadFileName(photoId: number): string {
+        return `planta-${parsedPlantId}-foto-${photoId}.jpg`;
+    }
+
+    function handleDownloadActivePhoto() {
+        if (!activePhoto || !activeImageUrl) {
+            return;
+        }
+
+        const link = document.createElement("a");
+        link.href = activeImageUrl;
+        link.download = getPhotoDownloadFileName(activePhoto.id);
+
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    }
+
     return (
         <>
             <PageHeader
@@ -405,6 +423,7 @@ export function PlantPhotosPage() {
                 onClose={closePreview}
                 onPrevious={() => void goToRelativePhoto(-1)}
                 onNext={() => void goToRelativePhoto(1)}
+                onDownload={handleDownloadActivePhoto}
             />
         </>
     );

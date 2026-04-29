@@ -4,6 +4,7 @@ import {
     CalendarDays,
     ChevronLeft,
     ChevronRight,
+    Download,
     FileText,
     Loader2,
     X
@@ -26,6 +27,7 @@ type PhotoLightboxProps = {
     onClose: () => void;
     onPrevious: () => void;
     onNext: () => void;
+    onDownload: () => void;
 };
 
 function formatDate(value: string | null): string {
@@ -61,7 +63,8 @@ export function PhotoLightbox({
     canGoNext,
     onClose,
     onPrevious,
-    onNext
+    onNext,
+    onDownload
 }: PhotoLightboxProps) {
     useEffect(() => {
         if (!isOpen) {
@@ -100,6 +103,7 @@ export function PhotoLightbox({
     }
 
     const title = getPhotoTitle(photo);
+    const canDownload = Boolean(imageUrl) && !isLoading && !errorMessage;
 
     return (
         <div
@@ -120,16 +124,18 @@ export function PhotoLightbox({
                         </p>
                     </div>
 
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-10 w-10 rounded-2xl"
-                        aria-label="Fechar visualização"
-                        onClick={onClose}
-                    >
-                        <X className="h-5 w-5" />
-                    </Button>
+                    <div className="flex shrink-0 items-center gap-2">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-10 w-10 rounded-2xl"
+                            aria-label="Fechar visualização"
+                            onClick={onClose}
+                        >
+                            <X className="h-5 w-5" />
+                        </Button>
+                    </div>
                 </div>
 
                 <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_22rem]">
@@ -185,6 +191,16 @@ export function PhotoLightbox({
                                 Registro visual da planta.
                             </p>
                         </div>
+
+                        <Button
+                            type="button"
+                            disabled={!canDownload}
+                            className="h-11 w-full rounded-2xl"
+                            onClick={onDownload}
+                        >
+                            <Download className="mr-2 h-4 w-4" />
+                            Baixar foto
+                        </Button>
 
                         <div className="rounded-2xl border border-border/70 bg-muted/20 px-4 py-3">
                             <div className="flex items-center gap-2 text-sm text-foreground">
