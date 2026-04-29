@@ -18,7 +18,7 @@ export const PHOTO_ALLOWED_EXTENSIONS = [
   ".webp",
   ".gif",
 ] as const;
-const MAX_PHOTO_TYPE_LENGTH = 64;
+
 const MAX_CAPTION_LENGTH = 160;
 const MAX_NOTES_LENGTH = 2_000;
 
@@ -58,15 +58,14 @@ function hasAllowedFileSize(value: FileList | undefined): boolean {
   );
 }
 
-function isValidDatetimeLocal(value: string | undefined): boolean {
+function isValidDateInput(value: string | undefined): boolean {
   const normalized = value?.trim();
 
   if (!normalized) {
     return true;
   }
 
-  const date = new Date(normalized);
-  return !Number.isNaN(date.getTime());
+  return /^\d{4}-\d{2}-\d{2}$/.test(normalized);
 }
 
 export const photoUploadSchema = z.object({
@@ -78,14 +77,6 @@ export const photoUploadSchema = z.object({
       hasAllowedFileSize,
       `A imagem deve ter até ${PHOTO_MAX_FILE_SIZE_LABEL}.`,
     ),
-  photo_type: z
-    .string()
-    .trim()
-    .max(
-      MAX_PHOTO_TYPE_LENGTH,
-      `O tipo deve ter no máximo ${MAX_PHOTO_TYPE_LENGTH} caracteres.`,
-    )
-    .optional(),
   caption: z
     .string()
     .trim()
@@ -105,7 +96,7 @@ export const photoUploadSchema = z.object({
   taken_at: z
     .string()
     .trim()
-    .refine(isValidDatetimeLocal, "Informe uma data válida.")
+    .refine(isValidDateInput, "Informe uma data válida.")
     .optional(),
 });
 
@@ -113,7 +104,6 @@ export type PhotoUploadFormValues = z.infer<typeof photoUploadSchema>;
 
 export const defaultPhotoUploadFormValues: Omit<PhotoUploadFormValues, "file"> =
   {
-    photo_type: "routine",
     caption: "",
     notes: "",
     taken_at: "",
