@@ -1,4 +1,4 @@
-import { ShieldAlert, Users } from "lucide-react";
+import { ShieldAlert, ShieldCheck, UserPlus, Users } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 
 import { getAppErrorMessage } from "@/core/api/apiError";
@@ -21,6 +21,7 @@ import { ErrorState } from "@/shared/components/ErrorState";
 import { LoadingState } from "@/shared/components/LoadingState";
 import { PageHeader } from "@/shared/components/PageHeader";
 import { Button } from "@/shared/components/ui/button";
+import { Card, CardContent } from "@/shared/components/ui/card";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 20;
@@ -90,6 +91,8 @@ export function AdminUsersPage() {
     const total = usersQuery.data?.meta?.total ?? items.length;
     const totalPages = getTotalPages(total, pageSize, usersQuery.data?.meta?.total_pages);
     const hasUsers = items.length > 0;
+    const activeUsers = items.filter((user) => user.is_active).length;
+    const adminUsers = items.filter((user) => user.is_admin).length;
 
     const mutationError =
         createMutation.error ??
@@ -198,12 +201,52 @@ export function AdminUsersPage() {
     return (
         <>
             <PageHeader
-                eyebrow="Admin"
+                eyebrow="Administração"
                 title="Usuários"
-                description="Administração de usuários, status, senha e sessões."
             />
 
             <div className="space-y-5">
+                <div className="grid gap-3 md:grid-cols-3">
+                    <Card className="border-border/70 bg-card shadow-sm">
+                        <CardContent className="flex items-center gap-3 p-4">
+                            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-primary/15 bg-primary/5 text-primary">
+                                <Users className="h-5 w-5" />
+                            </div>
+
+                            <div>
+                                <p className="text-sm text-muted-foreground">Nesta página</p>
+                                <p className="text-xl font-semibold text-foreground">{items.length}</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="border-border/70 bg-card shadow-sm">
+                        <CardContent className="flex items-center gap-3 p-4">
+                            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-700">
+                                <ShieldCheck className="h-5 w-5" />
+                            </div>
+
+                            <div>
+                                <p className="text-sm text-muted-foreground">Ativos</p>
+                                <p className="text-xl font-semibold text-foreground">{activeUsers}</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="border-border/70 bg-card shadow-sm">
+                        <CardContent className="flex items-center gap-3 p-4">
+                            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-sky-500/20 bg-sky-500/10 text-sky-700">
+                                <UserPlus className="h-5 w-5" />
+                            </div>
+
+                            <div>
+                                <p className="text-sm text-muted-foreground">Admins</p>
+                                <p className="text-xl font-semibold text-foreground">{adminUsers}</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
                 <AdminUserCreateForm
                     isSubmitting={createMutation.isPending}
                     apiErrorMessage={
@@ -267,39 +310,44 @@ export function AdminUsersPage() {
                             ))}
                         </div>
 
-                        <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border bg-card px-4 py-3 sm:flex-row">
-                            <p className="text-sm text-muted-foreground">
-                                Página {page} de {totalPages} · {total} registro(s)
-                            </p>
+                        {totalPages > 1 ? (
+                            <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card px-4 py-3 shadow-sm sm:flex-row">
+                                <p className="text-sm text-muted-foreground">
+                                    Página {page} de {totalPages} · {total} registro(s)
+                                </p>
 
-                            <div className="flex gap-2">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    disabled={page <= DEFAULT_PAGE || usersQuery.isFetching}
-                                    onClick={() => goToPage(page - 1)}
-                                >
-                                    Anterior
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    disabled={page >= totalPages || usersQuery.isFetching}
-                                    onClick={() => goToPage(page + 1)}
-                                >
-                                    Próxima
-                                </Button>
+                                <div className="flex gap-2">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="rounded-2xl"
+                                        disabled={page <= DEFAULT_PAGE || usersQuery.isFetching}
+                                        onClick={() => goToPage(page - 1)}
+                                    >
+                                        Anterior
+                                    </Button>
+
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="rounded-2xl"
+                                        disabled={page >= totalPages || usersQuery.isFetching}
+                                        onClick={() => goToPage(page + 1)}
+                                    >
+                                        Próxima
+                                    </Button>
+                                </div>
                             </div>
-                        </div>
+                        ) : null}
                     </>
                 ) : null}
 
-                <div className="rounded-2xl border bg-card p-4 text-sm text-muted-foreground">
+                <div className="rounded-2xl border border-border/70 bg-card p-4 text-sm text-muted-foreground shadow-sm">
                     <div className="flex gap-3">
                         <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                        <p>
-                            Use as ações administrativas somente quando necessário. Alterações de
-                            status, senha e sessões podem afetar imediatamente o acesso do usuário.
+                        <p className="leading-6">
+                            Use ações administrativas com cuidado. Alterações de status,
+                            senha e sessões podem afetar imediatamente o acesso do usuário.
                         </p>
                     </div>
                 </div>

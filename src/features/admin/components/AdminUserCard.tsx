@@ -1,6 +1,14 @@
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { KeyRound, Power, RotateCcw, ShieldCheck, User } from "lucide-react";
+import {
+    CalendarClock,
+    KeyRound,
+    Mail,
+    Power,
+    RotateCcw,
+    ShieldCheck,
+    User
+} from "lucide-react";
 
 import type { AdminUser } from "@/features/admin/types/adminTypes";
 import { StatusBadge } from "@/shared/components/StatusBadge";
@@ -33,7 +41,7 @@ function formatDateTime(value?: string | null): string {
         return "Data inválida";
     }
 
-    return format(date, "dd/MM/yyyy HH:mm", {
+    return format(date, "dd/MM/yyyy 'às' HH:mm", {
         locale: ptBR
     });
 }
@@ -58,11 +66,16 @@ export function AdminUserCard({
     const currentUserTitle = "Não é permitido executar esta ação no seu próprio usuário.";
 
     return (
-        <Card>
-            <CardHeader>
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <Card className="overflow-hidden border-border/70 bg-card shadow-sm transition-shadow hover:shadow-md">
+            <CardHeader className="border-b bg-muted/20 pb-4">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="flex min-w-0 gap-4">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-secondary text-primary">
+                        <div
+                            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border shadow-sm ${user.is_admin
+                                    ? "border-primary/20 bg-primary/10 text-primary"
+                                    : "border-border/70 bg-background text-muted-foreground"
+                                }`}
+                        >
                             {user.is_admin ? (
                                 <ShieldCheck className="h-5 w-5" aria-hidden="true" />
                             ) : (
@@ -71,8 +84,12 @@ export function AdminUserCard({
                         </div>
 
                         <div className="min-w-0">
-                            <CardTitle className="break-words text-base">{displayName}</CardTitle>
-                            <p className="mt-1 break-all text-sm text-muted-foreground">
+                            <CardTitle className="break-words text-base">
+                                {displayName}
+                            </CardTitle>
+
+                            <p className="mt-2 flex items-center gap-2 break-all text-sm text-muted-foreground">
+                                <Mail className="h-4 w-4 shrink-0 text-primary" />
                                 {displayEmail}
                             </p>
                         </div>
@@ -82,23 +99,40 @@ export function AdminUserCard({
                         <StatusBadge tone={user.is_active ? "success" : "danger"}>
                             {user.is_active ? "Ativo" : "Inativo"}
                         </StatusBadge>
+
                         {user.is_admin ? <StatusBadge tone="info">Admin</StatusBadge> : null}
-                        {isCurrentUser ? <StatusBadge tone="info">Você</StatusBadge> : null}
+
+                        {isCurrentUser ? <StatusBadge tone="neutral">Você</StatusBadge> : null}
                     </div>
                 </div>
             </CardHeader>
 
-            <CardContent className="space-y-4">
-                <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
-                    <div className="rounded-xl border bg-background px-3 py-2">
-                        Último login: {formatDateTime(user.last_login_at)}
+            <CardContent className="space-y-4 p-4">
+                <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-border/70 bg-background px-4 py-3 shadow-sm">
+                        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            <CalendarClock className="h-4 w-4 text-primary" />
+                            Último login
+                        </div>
+
+                        <p className="mt-2 text-sm font-semibold text-foreground">
+                            {formatDateTime(user.last_login_at)}
+                        </p>
                     </div>
-                    <div className="rounded-xl border bg-background px-3 py-2">
-                        Criado em: {formatDateTime(user.created_at)}
+
+                    <div className="rounded-2xl border border-border/70 bg-background px-4 py-3 shadow-sm">
+                        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            <CalendarClock className="h-4 w-4 text-primary" />
+                            Criado em
+                        </div>
+
+                        <p className="mt-2 text-sm font-semibold text-foreground">
+                            {formatDateTime(user.created_at)}
+                        </p>
                     </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                     {user.is_active ? (
                         <Button
                             type="button"
@@ -107,6 +141,7 @@ export function AdminUserCard({
                             disabled={isMutating || cannotMutateCurrentUser}
                             title={cannotMutateCurrentUser ? currentUserTitle : undefined}
                             aria-label={`Desativar usuário ${displayName}`}
+                            className="h-10 rounded-2xl hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
                             onClick={() => onDeactivate(user.id)}
                         >
                             <Power className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -119,6 +154,7 @@ export function AdminUserCard({
                             size="sm"
                             disabled={isMutating}
                             aria-label={`Ativar usuário ${displayName}`}
+                            className="h-10 rounded-2xl hover:border-emerald-500/30 hover:bg-emerald-500/10 hover:text-emerald-700"
                             onClick={() => onActivate(user.id)}
                         >
                             <Power className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -132,6 +168,7 @@ export function AdminUserCard({
                         size="sm"
                         disabled={isMutating}
                         aria-label={`Resetar senha do usuário ${displayName}`}
+                        className="h-10 rounded-2xl"
                         onClick={() => onResetPassword(user.id)}
                     >
                         <KeyRound className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -145,6 +182,7 @@ export function AdminUserCard({
                         disabled={isMutating || cannotMutateCurrentUser}
                         title={cannotMutateCurrentUser ? currentUserTitle : undefined}
                         aria-label={`Revogar sessões do usuário ${displayName}`}
+                        className="h-10 rounded-2xl"
                         onClick={() => onRevokeSessions(user.id)}
                     >
                         <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" />

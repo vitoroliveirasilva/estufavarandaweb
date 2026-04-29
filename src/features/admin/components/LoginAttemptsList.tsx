@@ -1,6 +1,12 @@
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ShieldAlert, ShieldCheck } from "lucide-react";
+import {
+    CalendarClock,
+    Globe2,
+    MonitorSmartphone,
+    ShieldAlert,
+    ShieldCheck
+} from "lucide-react";
 
 import type { LoginAttempt } from "@/features/admin/types/adminTypes";
 import { StatusBadge } from "@/shared/components/StatusBadge";
@@ -27,7 +33,7 @@ function formatDateTime(value?: string | null): string {
         return "Data inválida";
     }
 
-    return format(date, "dd/MM/yyyy HH:mm", {
+    return format(date, "dd/MM/yyyy 'às' HH:mm", {
         locale: ptBR
     });
 }
@@ -39,13 +45,23 @@ function displayText(value: string | null | undefined, fallback: string): string
 
 export function LoginAttemptsList({ attempts }: LoginAttemptsListProps) {
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Tentativas de login</CardTitle>
-                <CardDescription>Auditoria administrativa retornada pela API.</CardDescription>
+        <Card className="overflow-hidden border-border/70 bg-card shadow-sm">
+            <CardHeader className="border-b bg-muted/20 pb-4">
+                <div className="flex items-center gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-primary/15 bg-background text-primary shadow-sm">
+                        <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+                    </div>
+
+                    <div className="min-w-0 space-y-1">
+                        <CardTitle className="text-lg">Tentativas de login</CardTitle>
+                        <CardDescription className="leading-6">
+                            Auditoria de acessos recentes, com status, IP e dispositivo.
+                        </CardDescription>
+                    </div>
+                </div>
             </CardHeader>
 
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-3 p-4">
                 {attempts.map((attempt) => {
                     const email = displayText(attempt.email, "E-mail não informado");
                     const ip = displayText(attempt.ip, "Não informado");
@@ -54,35 +70,61 @@ export function LoginAttemptsList({ attempts }: LoginAttemptsListProps) {
                     return (
                         <article
                             key={attempt.id}
-                            className="flex gap-4 rounded-2xl border bg-background p-4"
+                            className="overflow-hidden rounded-3xl border border-border/70 bg-background shadow-sm"
                         >
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-secondary text-primary">
-                                {attempt.success ? (
-                                    <ShieldCheck className="h-5 w-5" aria-hidden="true" />
-                                ) : (
-                                    <ShieldAlert className="h-5 w-5" aria-hidden="true" />
-                                )}
-                            </div>
+                            <div className="flex flex-col gap-3 border-b border-border/70 bg-muted/20 p-4 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="flex min-w-0 gap-3">
+                                    <div
+                                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border shadow-sm ${attempt.success
+                                                ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                                                : "border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-300"
+                                            }`}
+                                    >
+                                        {attempt.success ? (
+                                            <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+                                        ) : (
+                                            <ShieldAlert className="h-5 w-5" aria-hidden="true" />
+                                        )}
+                                    </div>
 
-                            <div className="min-w-0 flex-1">
-                                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                                     <div className="min-w-0">
-                                        <h3 className="break-all font-medium">{email}</h3>
-                                        <p className="mt-1 text-sm text-muted-foreground">
+                                        <h3 className="break-all font-semibold text-foreground">
+                                            {email}
+                                        </h3>
+
+                                        <p className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+                                            <CalendarClock className="h-4 w-4 shrink-0 text-primary" />
                                             {formatDateTime(attempt.created_at)}
                                         </p>
                                     </div>
-
-                                    <StatusBadge tone={attempt.success ? "success" : "danger"}>
-                                        {attempt.success ? "Sucesso" : "Falha"}
-                                    </StatusBadge>
                                 </div>
 
-                                <div className="mt-3 grid gap-2 text-xs text-muted-foreground lg:grid-cols-2">
-                                    <div className="rounded-xl border bg-card px-3 py-2">IP: {ip}</div>
-                                    <div className="break-words rounded-xl border bg-card px-3 py-2">
-                                        User agent: {userAgent}
+                                <StatusBadge tone={attempt.success ? "success" : "danger"}>
+                                    {attempt.success ? "Sucesso" : "Falha"}
+                                </StatusBadge>
+                            </div>
+
+                            <div className="grid gap-3 p-4 lg:grid-cols-[16rem_minmax(0,1fr)]">
+                                <div className="rounded-2xl border border-border/70 bg-card px-4 py-3">
+                                    <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                        <Globe2 className="h-4 w-4 text-primary" />
+                                        IP
                                     </div>
+
+                                    <p className="mt-2 break-words text-sm font-semibold text-foreground">
+                                        {ip}
+                                    </p>
+                                </div>
+
+                                <div className="rounded-2xl border border-border/70 bg-card px-4 py-3">
+                                    <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                        <MonitorSmartphone className="h-4 w-4 text-primary" />
+                                        Dispositivo
+                                    </div>
+
+                                    <p className="mt-2 break-words text-sm leading-6 text-foreground">
+                                        {userAgent}
+                                    </p>
                                 </div>
                             </div>
                         </article>

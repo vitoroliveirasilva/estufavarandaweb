@@ -1,4 +1,4 @@
-import { Shield } from "lucide-react";
+import { Shield, ShieldAlert, ShieldCheck } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 
 import { getAppErrorMessage } from "@/core/api/apiError";
@@ -10,6 +10,7 @@ import { ErrorState } from "@/shared/components/ErrorState";
 import { LoadingState } from "@/shared/components/LoadingState";
 import { PageHeader } from "@/shared/components/PageHeader";
 import { Button } from "@/shared/components/ui/button";
+import { Card, CardContent } from "@/shared/components/ui/card";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 20;
@@ -74,6 +75,8 @@ export function LoginAttemptsPage() {
         attemptsQuery.data?.meta?.total_pages
     );
     const hasAttempts = items.length > 0;
+    const successCount = items.filter((attempt) => attempt.success).length;
+    const failureCount = items.filter((attempt) => !attempt.success).length;
 
     function goToPage(nextPage: number) {
         const next = new URLSearchParams();
@@ -87,12 +90,53 @@ export function LoginAttemptsPage() {
     return (
         <>
             <PageHeader
-                eyebrow="Admin"
+                eyebrow="Administração"
                 title="Tentativas de login"
-                description="Auditoria de autenticação com paginação."
+                description="Acompanhe acessos, falhas e informações de auditoria."
             />
 
             <div className="space-y-5">
+                <div className="grid gap-3 md:grid-cols-3">
+                    <Card className="border-border/70 bg-card shadow-sm">
+                        <CardContent className="flex items-center gap-3 p-4">
+                            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-primary/15 bg-primary/5 text-primary">
+                                <Shield className="h-5 w-5" />
+                            </div>
+
+                            <div>
+                                <p className="text-sm text-muted-foreground">Nesta página</p>
+                                <p className="text-xl font-semibold text-foreground">{items.length}</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="border-border/70 bg-card shadow-sm">
+                        <CardContent className="flex items-center gap-3 p-4">
+                            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-700">
+                                <ShieldCheck className="h-5 w-5" />
+                            </div>
+
+                            <div>
+                                <p className="text-sm text-muted-foreground">Sucessos</p>
+                                <p className="text-xl font-semibold text-foreground">{successCount}</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="border-border/70 bg-card shadow-sm">
+                        <CardContent className="flex items-center gap-3 p-4">
+                            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/10 text-red-700">
+                                <ShieldAlert className="h-5 w-5" />
+                            </div>
+
+                            <div>
+                                <p className="text-sm text-muted-foreground">Falhas</p>
+                                <p className="text-xl font-semibold text-foreground">{failureCount}</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
                 {attemptsQuery.isLoading ? (
                     <LoadingState
                         title="Carregando tentativas"
@@ -121,30 +165,35 @@ export function LoginAttemptsPage() {
                     <>
                         <LoginAttemptsList attempts={items} />
 
-                        <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border bg-card px-4 py-3 sm:flex-row">
-                            <p className="text-sm text-muted-foreground">
-                                Página {page} de {totalPages} · {total} registro(s)
-                            </p>
+                        {totalPages > 1 ? (
+                            <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card px-4 py-3 shadow-sm sm:flex-row">
+                                <p className="text-sm text-muted-foreground">
+                                    Página {page} de {totalPages} · {total} registro(s)
+                                </p>
 
-                            <div className="flex gap-2">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    disabled={page <= DEFAULT_PAGE || attemptsQuery.isFetching}
-                                    onClick={() => goToPage(page - 1)}
-                                >
-                                    Anterior
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    disabled={page >= totalPages || attemptsQuery.isFetching}
-                                    onClick={() => goToPage(page + 1)}
-                                >
-                                    Próxima
-                                </Button>
+                                <div className="flex gap-2">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="rounded-2xl"
+                                        disabled={page <= DEFAULT_PAGE || attemptsQuery.isFetching}
+                                        onClick={() => goToPage(page - 1)}
+                                    >
+                                        Anterior
+                                    </Button>
+
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="rounded-2xl"
+                                        disabled={page >= totalPages || attemptsQuery.isFetching}
+                                        onClick={() => goToPage(page + 1)}
+                                    >
+                                        Próxima
+                                    </Button>
+                                </div>
                             </div>
-                        </div>
+                        ) : null}
                     </>
                 ) : null}
             </div>
