@@ -170,7 +170,7 @@ function AppContentCard({ item }: { item: AppContentSummary }) {
                                 Ver conteúdo
                             </span>
 
-                            <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-background text-primary shadow-sm transition-transform duration-300 group-hover:translate-x-1">
+                            <span className="flex h-9 w-9 items-center justify-center rounded-2xl text-primary transition-transform duration-300 group-hover:translate-x-1">
                                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
                             </span>
                         </div>
