@@ -54,19 +54,6 @@ function safeText(value: string, fallback: string): string {
     return normalized || fallback;
 }
 
-function humanizeType(value: string): string {
-    const normalized = value.trim();
-
-    if (!normalized) {
-        return "Tipo não informado";
-    }
-
-    return normalized
-        .replace(/[_-]+/g, " ")
-        .replace(/\s+/g, " ")
-        .replace(/^./, (char) => char.toUpperCase());
-}
-
 function getCardClassName(status: string): string {
     if (status === "pending") {
         return "border-primary/20 bg-primary/[0.025]";
@@ -104,7 +91,6 @@ export function NotificationCard({
 
     const title = safeText(notification.title, "Notificação sem título");
     const body = safeText(notification.body, "Sem detalhes adicionais.");
-    const typeLabel = humanizeType(notification.type);
 
     const canMarkRead =
         isValidNotificationId &&
@@ -154,7 +140,6 @@ export function NotificationCard({
                                 <CardTitle className="break-words text-base font-semibold leading-6">
                                     {title}
                                 </CardTitle>
-                                <NotificationStatusBadge status={notification.status} />
                             </div>
 
                             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
@@ -163,10 +148,7 @@ export function NotificationCard({
                                     {formatDateTime(notification.created_at)}
                                 </span>
 
-                                <span className="inline-flex items-center gap-1.5">
-                                    <Bell className="h-3.5 w-3.5" aria-hidden="true" />
-                                    {typeLabel}
-                                </span>
+                                <NotificationStatusBadge status={notification.status} />
                             </div>
                         </div>
                     </div>
