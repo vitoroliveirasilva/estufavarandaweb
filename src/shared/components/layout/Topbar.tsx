@@ -2,6 +2,7 @@ import { BadgeInfo, Bell, Leaf, LogOut, ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import type { AuthUser } from "@/core/auth/authStore";
+import { ThemeToggle } from "@/shared/components/ThemeToggle";
 import { Button } from "@/shared/components/ui/button";
 
 type TopbarProps = {
@@ -72,6 +73,8 @@ export function Topbar({
                 </div>
 
                 <div className="ml-auto flex shrink-0 items-center gap-2">
+                    <ThemeToggle />
+
                     <Button
                         asChild
                         variant="outline"
