@@ -61,10 +61,6 @@ function cleanParams(params: PlantListParams): Record<string, RequestParam> {
   );
   const search = cleanString(params.search, MAX_SEARCH_LENGTH);
   const healthStatus = cleanString(params.health_status, MAX_TEXT_LENGTH);
-  const speciesProfileId = normalizePositiveInteger(
-    params.species_profile_id,
-    "Espécie"
-  );
 
   if (page !== undefined) {
     cleaned.page = page;
@@ -84,10 +80,6 @@ function cleanParams(params: PlantListParams): Record<string, RequestParam> {
 
   if (healthStatus) {
     cleaned.health_status = healthStatus;
-  }
-
-  if (speciesProfileId !== undefined) {
-    cleaned.species_profile_id = speciesProfileId;
   }
 
   if (search) {
@@ -120,10 +112,6 @@ function cleanPayload<T extends PlantCreatePayload | PlantUpdatePayload>(
   const cityName = cleanString(payload.city_name, MAX_TEXT_LENGTH);
   const notes = cleanString(payload.notes, MAX_NOTES_LENGTH);
   const healthStatus = cleanString(payload.health_status, MAX_TEXT_LENGTH);
-  const speciesProfileId = normalizePositiveInteger(
-    payload.species_profile_id,
-    "Espécie"
-  );
 
   if (nickname) {
     cleaned.nickname = nickname;
@@ -155,10 +143,6 @@ function cleanPayload<T extends PlantCreatePayload | PlantUpdatePayload>(
 
   if (healthStatus) {
     cleaned.health_status = healthStatus;
-  }
-
-  if (speciesProfileId !== undefined) {
-    cleaned.species_profile_id = speciesProfileId;
   }
 
   return cleaned as T;

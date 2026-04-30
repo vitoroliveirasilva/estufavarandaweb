@@ -1,10 +1,5 @@
 import type { PaginationMeta } from "@/core/api/responseEnvelope";
 
-export type SpeciesProfileSummary = {
-  id: number;
-  common_name: string;
-};
-
 export type KnownPlantHealthStatus =
   | "healthy"
   | "attention"
@@ -21,11 +16,9 @@ export type PlantListItem = {
   location_label: string | null;
   city_name: string | null;
   archived_at: string | null;
-  species_profile: SpeciesProfileSummary | null;
 };
 
 export type PlantDetail = PlantListItem & {
-  species_profile_id?: number | null;
   environment?: string | null;
   light_exposure?: string | null;
   ventilation?: string | null;
@@ -41,7 +34,6 @@ export type PlantListParams = {
   include_archived?: boolean;
   archived?: boolean;
   health_status?: string;
-  species_profile_id?: number;
   search?: string;
 };
 
@@ -60,7 +52,6 @@ export type PlantCreatePayload = {
   city_name?: string;
   notes?: string;
   health_status?: string;
-  species_profile_id?: number;
 };
 
 export type PlantUpdatePayload = Partial<PlantCreatePayload>;

@@ -21,8 +21,6 @@ import { PlantPhotosPage } from "@/features/photos/pages/PlantPhotosPage";
 import { PlantDetailPage } from "@/features/plants/pages/PlantDetailPage";
 import { PlantFormPage } from "@/features/plants/pages/PlantFormPage";
 import { PlantsListPage } from "@/features/plants/pages/PlantsListPage";
-import { SettingsPage } from "@/features/settings/pages/SettingsPage";
-import { SpeciesListPage } from "@/features/species/pages/SpeciesListPage";
 import { WateringLogsPage } from "@/features/watering/pages/WateringLogsPage";
 import { PublicOnlyRoute } from "@/core/auth/PublicOnlyRoute";
 import { RequireAuth } from "@/core/auth/RequireAuth";
@@ -184,16 +182,8 @@ export const router = createBrowserRouter([
             element: <PlantAiPage />,
           },
           {
-            path: "species",
-            element: <SpeciesListPage />,
-          },
-          {
             path: "notifications",
             element: <NotificationsPage />,
-          },
-          {
-            path: "settings",
-            element: <SettingsPage />,
           },
           {
             path: "admin/users",

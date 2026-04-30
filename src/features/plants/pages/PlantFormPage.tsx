@@ -55,10 +55,7 @@ function plantToFormValues(plant: PlantDetail): PlantFormValues {
         location_label: toStringValue(plant.location_label),
         city_name: toStringValue(plant.city_name),
         notes: toStringValue(plant.notes),
-        health_status: toStringValue(plant.health_status),
-        species_profile_id: toStringValue(
-            plant.species_profile_id ?? plant.species_profile?.id
-        )
+        health_status: toStringValue(plant.health_status)
     };
 }
 

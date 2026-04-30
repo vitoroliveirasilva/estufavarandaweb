@@ -20,24 +20,7 @@ export const plantFormSchema = z.object({
   location_label: optionalText(MAX_LOCATION_TEXT_LENGTH),
   city_name: optionalText(MAX_LOCATION_TEXT_LENGTH),
   notes: optionalText(MAX_NOTES_LENGTH),
-  health_status: optionalText(MAX_SHORT_TEXT_LENGTH),
-  species_profile_id: z
-    .string()
-    .trim()
-    .optional()
-    .refine(
-      (value) => {
-        if (!value) {
-          return true;
-        }
-
-        const parsed = Number(value);
-        return Number.isInteger(parsed) && parsed > 0;
-      },
-      {
-        message: "Informe um ID de espécie válido."
-      }
-    )
+  health_status: optionalText(MAX_SHORT_TEXT_LENGTH)
 });
 
 export type PlantFormValues = z.infer<typeof plantFormSchema>;
@@ -51,6 +34,5 @@ export const defaultPlantFormValues: PlantFormValues = {
   location_label: "",
   city_name: "",
   notes: "",
-  health_status: "",
-  species_profile_id: ""
+  health_status: ""
 };

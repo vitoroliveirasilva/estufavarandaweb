@@ -302,8 +302,6 @@ export function PlantForm({
                 </div>
             ) : null}
 
-            <input type="hidden" {...form.register("species_profile_id")} />
-
             <Card className="overflow-visible border-border/70 bg-card shadow-sm">
                 <CardHeader className="pb-4">
                     <div className="flex items-start gap-3">
