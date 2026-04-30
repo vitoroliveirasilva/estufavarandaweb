@@ -26,6 +26,8 @@ import { PublicOnlyRoute } from "@/core/auth/PublicOnlyRoute";
 import { RequireAuth } from "@/core/auth/RequireAuth";
 import { PublicLayout } from "@/shared/layouts/PublicLayout";
 import { RootLayout } from "@/shared/layouts/RootLayout";
+import { AppContentListPage } from "@/features/app-content/pages/AppContentListPage";
+import { AppContentPage } from "@/features/app-content/pages/AppContentPage";
 
 type RouteErrorContent = {
   title: string;
@@ -192,6 +194,30 @@ export const router = createBrowserRouter([
           {
             path: "admin/login-attempts",
             element: <LoginAttemptsPage />,
+          },
+          {
+            path: "/app/informacoes",
+            element: <AppContentListPage />
+          },
+          {
+            path: "/app/informacoes/:slug",
+            element: <AppContentPage />
+          },
+          {
+            path: "/app/sobre",
+            element: <AppContentPage fixedSlug="sobre-o-sistema" />
+          },
+          {
+            path: "/app/privacidade",
+            element: <AppContentPage fixedSlug="politica-de-privacidade" />
+          },
+          {
+            path: "/app/termos",
+            element: <AppContentPage fixedSlug="termos-de-uso" />
+          },
+          {
+            path: "/app/cookies",
+            element: <AppContentPage fixedSlug="politica-de-cookies" />
           },
         ],
       },

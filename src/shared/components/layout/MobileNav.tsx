@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 
 import {
     adminNavItems,
+    appInfoNavItems,
     mainNavItems,
     type AppNavItem
 } from "@/shared/constants/navigation";
@@ -66,9 +67,13 @@ function MobileNavLink({ item }: MobileNavLinkProps) {
 }
 
 export function MobileNav({ canSeeAdmin }: MobileNavProps) {
+    const visibleMainNavItems = getVisibleNavItems(mainNavItems);
+    const visibleInfoNavItems = getVisibleNavItems(appInfoNavItems);
+    const visibleAdminNavItems = getVisibleNavItems(adminNavItems);
+
     const items: readonly AppNavItem[] = canSeeAdmin
-        ? [...getVisibleNavItems(mainNavItems), ...getVisibleNavItems(adminNavItems)]
-        : getVisibleNavItems(mainNavItems);
+        ? [...visibleMainNavItems, ...visibleInfoNavItems, ...visibleAdminNavItems]
+        : [...visibleMainNavItems, ...visibleInfoNavItems];
 
     return (
         <nav

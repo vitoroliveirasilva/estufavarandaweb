@@ -1,4 +1,4 @@
-import { Bell, Leaf, LogOut, ShieldCheck } from "lucide-react";
+import { BadgeInfo, Bell, Leaf, LogOut, ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import type { AuthUser } from "@/core/auth/authStore";
@@ -54,15 +54,14 @@ export function Topbar({
 
                             <div className="mb-0.5 flex items-center gap-1.5">
                                 {!canSeeAdmin ? (
-                                    <div className="mb-0.5 flex items-center gap-1.5">
-                                        <ShieldCheck
-                                            className="h-4 w-4 shrink-0 text-primary"
-                                            aria-hidden="true"
-                                        />
-                                    </div>
+                                    <ShieldCheck
+                                        className="h-4 w-4 shrink-0 text-primary"
+                                        aria-hidden="true"
+                                    />
                                 ) : null}
+
                                 <p
-                                    className="max-w-[12rem] truncate text-sm font-medium text-foreground sm:max-w-72"
+                                    className="max-w-[10rem] truncate text-sm font-medium text-foreground sm:max-w-72"
                                     title={userName}
                                 >
                                     {userName}
@@ -73,6 +72,18 @@ export function Topbar({
                 </div>
 
                 <div className="ml-auto flex shrink-0 items-center gap-2">
+                    <Button
+                        asChild
+                        variant="outline"
+                        size="sm"
+                        className="h-10 rounded-2xl border-border/70 bg-card shadow-sm transition-colors hover:border-primary/20 hover:bg-primary/5 hover:text-primary"
+                    >
+                        <Link to="/app/informacoes" aria-label="Abrir informações do sistema">
+                            <BadgeInfo className="h-4 w-4 sm:mr-2" aria-hidden="true" />
+                            <span className="hidden sm:inline">Informações</span>
+                        </Link>
+                    </Button>
+
                     <Button
                         asChild
                         variant="outline"
