@@ -158,11 +158,18 @@ export async function getCurrentUser(): Promise<AuthUser> {
 export async function forgotPassword(
   payload: ForgotPasswordRequest,
 ): Promise<MessageResponse> {
+  const captchaToken = payload.captcha_token?.trim() || null;
+  const requestPayload: { email: string; captcha_token?: string } = {
+    email: payload.email.trim(),
+  };
+
+  if (captchaToken) {
+    requestPayload.captcha_token = captchaToken;
+  }
+
   const response = await publicApiClient.post<ApiEnvelope<MessageResponse>>(
     "/auth/forgot-password",
-    {
-      email: payload.email.trim(),
-    },
+    requestPayload,
   );
 
   return normalizeMessageResponse(

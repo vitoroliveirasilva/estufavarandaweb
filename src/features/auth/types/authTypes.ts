@@ -21,6 +21,7 @@ export type LoginResult = {
 
 export type ForgotPasswordRequest = {
   email: string;
+  captcha_token?: string | null;
 };
 
 export type ResetPasswordRequest = {

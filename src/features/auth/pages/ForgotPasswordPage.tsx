@@ -7,16 +7,18 @@ import {
     LockKeyhole,
     Mail,
     Send,
+    ShieldCheck,
 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
 
 import { getAppErrorMessage } from "@/core/api/apiError";
+import { TurnstileWidget } from "@/features/auth/components/TurnstileWidget";
 import { useForgotPasswordMutation } from "@/features/auth/hooks/useAuthActions";
 import {
     forgotPasswordSchema,
-    type ForgotPasswordFormValues
+    type ForgotPasswordFormValues,
 } from "@/features/auth/schemas/authSchemas";
 import { FormErrorMessage } from "@/shared/components/FormErrorMessage";
 import { Button } from "@/shared/components/ui/button";
@@ -24,7 +26,7 @@ import {
     Card,
     CardContent,
     CardHeader,
-    CardTitle
+    CardTitle,
 } from "@/shared/components/ui/card";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
@@ -32,16 +34,40 @@ import { Label } from "@/shared/components/ui/label";
 const GENERIC_SUCCESS_MESSAGE =
     "Se o e-mail estiver cadastrado, você receberá instruções para redefinir sua senha.";
 
+const TURNSTILE_ACTION = "forgot_password";
+const TURNSTILE_PLACEHOLDER_KEYS = new Set([
+    "turnstile-site-key",
+    "sua-site-key",
+    "sua_site_key_aqui",
+]);
+
+function getTurnstileSiteKey(): string | null {
+    const value = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+    const siteKey = typeof value === "string" ? value.trim() : "";
+
+    if (!siteKey || TURNSTILE_PLACEHOLDER_KEYS.has(siteKey.toLowerCase())) {
+        return null;
+    }
+
+    return siteKey;
+}
+
 export function ForgotPasswordPage() {
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
+    const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+    const [captchaError, setCaptchaError] = useState<string | null>(null);
+    const [captchaResetSignal, setCaptchaResetSignal] = useState(0);
+
     const forgotPasswordMutation = useForgotPasswordMutation();
+    const turnstileSiteKey = getTurnstileSiteKey();
+    const isCaptchaEnabled = Boolean(turnstileSiteKey);
 
     const form = useForm<ForgotPasswordFormValues>({
         resolver: zodResolver(forgotPasswordSchema),
         defaultValues: {
-            email: ""
+            email: "",
         },
-        mode: "onTouched"
+        mode: "onTouched",
     });
 
     const isSubmitting =
@@ -52,20 +78,55 @@ export function ForgotPasswordPage() {
             ? getAppErrorMessage(forgotPasswordMutation.error)
             : null;
 
+    const resetCaptcha = useCallback(() => {
+        setCaptchaToken(null);
+        setCaptchaResetSignal((currentValue) => currentValue + 1);
+    }, []);
+
+    const handleCaptchaVerify = useCallback((token: string) => {
+        setCaptchaToken(token);
+        setCaptchaError(null);
+    }, []);
+
+    const handleCaptchaExpire = useCallback(() => {
+        setCaptchaToken(null);
+        setCaptchaError(
+            "A verificação de segurança expirou. Confirme novamente para continuar.",
+        );
+    }, []);
+
+    const handleCaptchaError = useCallback(() => {
+        setCaptchaToken(null);
+        setCaptchaError(
+            "Não foi possível concluir a verificação de segurança. Tente novamente.",
+        );
+    }, []);
+
     const onSubmit = form.handleSubmit(async (values) => {
         setSuccessMessage(null);
 
+        if (isCaptchaEnabled && !captchaToken) {
+            setCaptchaError("Confirme a verificação de segurança para continuar.");
+            return;
+        }
+
         try {
             await forgotPasswordMutation.mutateAsync({
-                email: values.email
+                email: values.email,
+                captcha_token: captchaToken,
             });
 
             setSuccessMessage(GENERIC_SUCCESS_MESSAGE);
+            setCaptchaError(null);
             form.reset({
-                email: ""
+                email: "",
             });
         } catch {
             // O erro amigável aparece na tela pelo parser central.
+        } finally {
+            if (isCaptchaEnabled) {
+                resetCaptcha();
+            }
         }
     });
 
@@ -137,22 +198,51 @@ export function ForgotPasswordPage() {
                                 />
                             </div>
 
-                            <FormErrorMessage
-                                message={form.formState.errors.email?.message}
-                            />
+                            <FormErrorMessage message={form.formState.errors.email?.message} />
                         </div>
                     </div>
 
+                    {turnstileSiteKey ? (
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                                <ShieldCheck className="h-4 w-4 text-primary" aria-hidden="true" />
+                                Verificação de segurança
+                            </div>
+
+                            <div className="flex min-h-[78px] items-center justify-center rounded-2xl border border-border/70 bg-muted/20 px-3 py-3">
+                                <TurnstileWidget
+                                    siteKey={turnstileSiteKey}
+                                    action={TURNSTILE_ACTION}
+                                    resetSignal={captchaResetSignal}
+                                    onVerify={handleCaptchaVerify}
+                                    onExpire={handleCaptchaExpire}
+                                    onError={handleCaptchaError}
+                                />
+                            </div>
+
+                            {captchaError ? (
+                                <p
+                                    aria-live="polite"
+                                    className="text-sm leading-5 text-destructive"
+                                    role="alert"
+                                >
+                                    {captchaError}
+                                </p>
+                            ) : null}
+                        </div>
+                    ) : null}
+
                     <div className="flex items-start justify-start gap-2 rounded-2xl border border-border/70 bg-muted/20 px-4 py-3 text-start">
                         <p className="text-sm leading-6 text-muted-foreground">
-                            Para sua segurança, a mensagem exibida será a mesma, mesmo que o e-mail não esteja cadastrado.
+                            Para sua segurança, a mensagem exibida será a mesma, mesmo que o
+                            e-mail não esteja cadastrado.
                         </p>
                     </div>
 
                     <Button
                         type="submit"
                         className="h-12 w-full rounded-2xl px-6 text-base font-semibold shadow-sm transition hover:shadow-md disabled:shadow-none"
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || (isCaptchaEnabled && !captchaToken)}
                     >
                         {isSubmitting ? (
                             <>
