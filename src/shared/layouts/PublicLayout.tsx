@@ -13,31 +13,11 @@ export function PublicLayout() {
 
                     <div className="space-y-5">
                         <h1 id="public-layout-title" className="text-5xl font-semibold tracking-tight text-foreground">
-                            Suas plantas com histórico, cuidado e um tiquinho de método.
+                            Cuide das suas plantas com histórico, contexto e um pouco menos de adivinhação
                         </h1>
                         <p id="public-layout-description" className="max-w-xl text-lg leading-8 text-muted-foreground">
-                            Uma interface web limpa para acompanhar plantas, regas, eventos,
-                            notificações e próximos módulos da sua estufa digital.
+                            Organize plantas, regas, eventos, fotos, clima e notificações para acompanhamento
                         </p>
-                    </div>
-
-                    <div className="grid max-w-xl gap-4 sm:grid-cols-2">
-                        <article className="rounded-2xl border bg-card/80 p-5 shadow-soft backdrop-blur">
-                            <ShieldCheck className="mb-4 h-6 w-6 text-primary" aria-hidden="true" />
-                            <h2 className="font-semibold">Sessão segura</h2>
-                            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                                Preparado para JWT, refresh token e rotas protegidas nos
-                                próximos blocos.
-                            </p>
-                        </article>
-
-                        <article className="rounded-2xl border bg-card/80 p-5 shadow-soft backdrop-blur">
-                            <Sparkles className="mb-4 h-6 w-6 text-primary" aria-hidden="true" />
-                            <h2 className="font-semibold">Pronto para crescer</h2>
-                            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                                Estrutura por features para plantas, fotos, clima, IA e admin.
-                            </p>
-                        </article>
                     </div>
                 </section>
 
