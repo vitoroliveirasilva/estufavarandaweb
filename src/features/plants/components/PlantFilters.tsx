@@ -1,7 +1,6 @@
 import { ChevronDown, Search } from "lucide-react";
 import {
     type FormEvent,
-    type ReactNode,
     useEffect,
     useRef,
     useState

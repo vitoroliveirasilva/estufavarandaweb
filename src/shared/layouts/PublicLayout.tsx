@@ -1,4 +1,4 @@
-import { Leaf, ShieldCheck, Sparkles } from "lucide-react";
+import { Leaf } from "lucide-react";
 import { Outlet } from "react-router-dom";
 
 export function PublicLayout() {
